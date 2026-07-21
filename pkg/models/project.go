@@ -1578,8 +1578,11 @@ func ClearProjectBackground(s *xorm.Session, projectID int64) (err error) {
 	return
 }
 
-// setArchiveStateForProjectDescendants uses a recursive CTE to find and set the archived status of all descendant projects.
-func setArchiveStateForProjectDescendants(s *xorm.Session, parentProjectID int64, shouldBeArchived bool) error {
+// getDescendantProjectIDs returns the ids of all projects whose ancestor
+// chain includes parentProjectID (exclusive of the parent itself). Uses a
+// recursive CTE so the depth is bounded only by the database, not by call
+// frames. Returns an empty slice for a project with no children.
+func getDescendantProjectIDs(s *xorm.Session, parentProjectID int64) ([]int64, error) {
 	var descendantIDs []int64
 	err := s.SQL(
 		`
@@ -1597,7 +1600,16 @@ SELECT id FROM descendant_ids`,
 	).Find(&descendantIDs)
 	if err != nil {
 		log.Errorf("Error finding descendant projects for parent ID %d: %v", parentProjectID, err)
-		return fmt.Errorf("failed to find descendant projects for parent ID %d: %w", parentProjectID, err)
+		return nil, fmt.Errorf("failed to find descendant projects for parent ID %d: %w", parentProjectID, err)
+	}
+	return descendantIDs, nil
+}
+
+// setArchiveStateForProjectDescendants uses a recursive CTE to find and set the archived status of all descendant projects.
+func setArchiveStateForProjectDescendants(s *xorm.Session, parentProjectID int64, shouldBeArchived bool) error {
+	descendantIDs, err := getDescendantProjectIDs(s, parentProjectID)
+	if err != nil {
+		return err
 	}
 
 	if len(descendantIDs) == 0 {

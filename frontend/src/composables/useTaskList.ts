@@ -12,6 +12,7 @@ import type {ITask} from '@/modelTypes/ITask'
 import {error} from '@/message'
 import type {IProject} from '@/modelTypes/IProject'
 import {useAuthStore} from '@/stores/auth'
+import {useProjectStore} from '@/stores/projects'
 import {useViewFiltersStore} from '@/stores/viewFilters'
 import type {IProjectView} from '@/modelTypes/IProjectView'
 
@@ -215,7 +216,16 @@ export function useTaskList(
 	)
 	
 	const authStore = useAuthStore()
-	
+	const projectStore = useProjectStore()
+
+	// Only ask the backend for descendant tasks when the toggle is on and the
+	// current project actually has children — saves a pointless descendant walk
+	// for leaf projects.
+	const includeDescendants = computed(() =>
+		authStore.settings.frontendSettings.showSubprojectTasks &&
+		projectStore.getChildProjects(projectId.value).length > 0,
+	)
+
 	const getAllTasksParams = computed(() => {
 		return [
 			{
@@ -226,6 +236,7 @@ export function useTaskList(
 				...allParams.value,
 				filter_timezone: authStore.settings.timezone,
 				expand: expandGetter(),
+				include_descendants: includeDescendants.value,
 			},
 			page.value,
 		]

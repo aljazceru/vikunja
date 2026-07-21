@@ -17,6 +17,10 @@
 					:project-id="projectId"
 					@update:modelValue="loadTasks()"
 				/>
+				<SubprojectsToggle
+					v-if="!isSavedFilter(project)"
+					:project-id="projectId"
+				/>
 			</div>
 		</template>
 
@@ -112,6 +116,7 @@ import FilterPopup from '@/components/project/partials/FilterPopup.vue'
 import Nothing from '@/components/misc/Nothing.vue'
 import Pagination from '@/components/misc/Pagination.vue'
 import SortPopup from '@/components/project/partials/SortPopup.vue'
+import SubprojectsToggle from '@/components/project/partials/SubprojectsToggle.vue'
 
 import {useTaskList} from '@/composables/useTaskList'
 import {useTaskDragToProject} from '@/composables/useTaskDragToProject'

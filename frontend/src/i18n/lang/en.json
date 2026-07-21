@@ -341,6 +341,10 @@
     "archivedMessage": "This project is archived. It is not possible to create new or edit tasks for it.",
     "archived": "Archived",
     "showArchived": "Show Archived",
+    "showSubprojectTasks": {
+      "label": "Show tasks from subprojects",
+      "saved": "Saved."
+    },
     "title": "Title",
     "color": "Color",
     "projects": "Projects",

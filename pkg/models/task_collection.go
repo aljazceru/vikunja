@@ -56,6 +56,11 @@ type TaskCollection struct {
 	// You can set this multiple times with different values.
 	Expand []TaskCollectionExpandable `query:"expand" json:"-"`
 
+	// If true, the result also includes tasks from all descendant (sub-) projects the user can read.
+	// Only honored for a concrete project id; ignored for saved filters, the cross-project listing,
+	// and the kanban buckets endpoint (buckets are per-project by design).
+	IncludeDescendants bool `query:"include_descendants" json:"-" doc:"If true, also return tasks from all descendant projects the user can read. Ignored for the buckets endpoint, saved filters, and cross-project listings."`
+
 	isSavedFilter bool
 
 	// forceFlatTasks makes ReadAll always return []*Task, never []*Bucket, even
@@ -209,7 +214,38 @@ func getRelevantProjectsFromCollection(s *xorm.Session, a web.Auth, tf *TaskColl
 		}
 	}
 
-	return []*Project{{ID: tf.ProjectID}}, nil
+	projects = []*Project{{ID: tf.ProjectID}}
+	if !tf.IncludeDescendants {
+		return projects, nil
+	}
+
+	// Walk descendants and keep only those the user can read. The readable-set
+	// intersection is the permission check — a descendant without access is
+	// dropped here, before it ever reaches the task query.
+	descendantIDs, err := getDescendantProjectIDs(s, tf.ProjectID)
+	if err != nil {
+		return nil, err
+	}
+	if len(descendantIDs) == 0 {
+		return projects, nil
+	}
+	readable, _, _, err := getRawProjectsForUser(s, &projectOptions{
+		user: &user.User{ID: a.GetID()},
+		page: -1,
+	})
+	if err != nil {
+		return nil, err
+	}
+	readableSet := make(map[int64]bool, len(readable))
+	for _, p := range readable {
+		readableSet[p.ID] = true
+	}
+	for _, id := range descendantIDs {
+		if readableSet[id] {
+			projects = append(projects, &Project{ID: id})
+		}
+	}
+	return projects, nil
 }
 
 func getFilterValueForBucketFilter(filter string, view *ProjectView) (newFilter string, err error) {

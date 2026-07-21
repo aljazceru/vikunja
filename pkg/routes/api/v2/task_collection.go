@@ -61,6 +61,7 @@ type TaskListQueryParams struct {
 	SortBy             []string `query:"sort_by,explode" doc:"Fields to sort by (e.g. done, priority). Repeatable; pair positionally with order_by. The special value relevance sorts by search relevance (most relevant first, requires s; ignored when the database cannot score the query)."`
 	OrderBy            []string `query:"order_by,explode" doc:"Sort order per sort_by field, asc or desc. Repeatable; defaults to asc."`
 	Expand             []string `query:"expand,explode" enum:"subtasks,buckets,reactions,comments,comment_count,time_entries_count,is_unread" doc:"Embed extra, more expensive data per task. Repeatable."`
+	IncludeDescendants bool     `query:"include_descendants" doc:"If true, also return tasks from all descendant (sub-) projects the user can read. Only honored on the project and project-view flat-tasks endpoints; ignored for buckets (per-project by design), saved filters, and the cross-project listing."`
 	Format             string   `query:"format" enum:"html,markdown" doc:"How rich-text fields are exchanged. See the API description."`
 }
 
@@ -89,18 +90,19 @@ type taskListFilters struct {
 	SortBy             []string
 	OrderBy            []string
 	Expand             []string
+	IncludeDescendants bool
 }
 
 func (in taskListAllInput) filters() taskListFilters {
-	return taskListFilters{in.Q, in.Filter, in.FilterTimezone, in.FilterIncludeNulls, in.SortBy, in.OrderBy, in.Expand}
+	return taskListFilters{in.Q, in.Filter, in.FilterTimezone, in.FilterIncludeNulls, in.SortBy, in.OrderBy, in.Expand, in.IncludeDescendants}
 }
 
 func (in taskListProjectInput) filters() taskListFilters {
-	return taskListFilters{in.Q, in.Filter, in.FilterTimezone, in.FilterIncludeNulls, in.SortBy, in.OrderBy, in.Expand}
+	return taskListFilters{in.Q, in.Filter, in.FilterTimezone, in.FilterIncludeNulls, in.SortBy, in.OrderBy, in.Expand, in.IncludeDescendants}
 }
 
 func (in taskListViewInput) filters() taskListFilters {
-	return taskListFilters{in.Q, in.Filter, in.FilterTimezone, in.FilterIncludeNulls, in.SortBy, in.OrderBy, in.Expand}
+	return taskListFilters{in.Q, in.Filter, in.FilterTimezone, in.FilterIncludeNulls, in.SortBy, in.OrderBy, in.Expand, in.IncludeDescendants}
 }
 
 // collection turns the bound query into a TaskCollection. The search term
@@ -121,6 +123,7 @@ func (f taskListFilters) collection(projectID, viewID int64, forceFlat bool) (*m
 		SortBy:             f.SortBy,
 		OrderBy:            f.OrderBy,
 		Expand:             expand,
+		IncludeDescendants: f.IncludeDescendants,
 	}
 	if forceFlat {
 		tc.SetForceFlatTasks()
@@ -212,6 +215,9 @@ func projectViewBucketsTasksList(ctx context.Context, in *taskListViewInput) (*b
 		return nil, err
 	}
 	f := in.filters()
+	// Buckets belong to a single project's kanban view and cannot span
+	// projects, so the descendant flag is meaningless here.
+	f.IncludeDescendants = false
 	tc, err := f.collection(in.ProjectID, in.ViewID, false)
 	if err != nil {
 		return nil, err
