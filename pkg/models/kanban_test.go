@@ -314,3 +314,26 @@ func TestGetTasksInBucketsForView_ProjectMode(t *testing.T) {
 	assert.Contains(t, taskIDs(bucketByID[17]), int64(26), "descendant bucket holds task #26")
 	assert.NotContains(t, taskIDs(bucketByID[34]), int64(26), "descendant task must not leak into the parent bucket")
 }
+
+// The per-request group_by_project toggle (the seamless "Show subproject
+// tasks" path) must synthesize per-project buckets even when the view itself is
+// configured as manual — and must NOT also return the view's real manual
+// buckets (which would duplicate columns). Uses fixture view 4 (project 1,
+// manual, with real buckets) to prove the override.
+func TestGetTasksInBucketsForView_GroupByProjectRequestFlag(t *testing.T) {
+	db.LoadAndAssertFixtures(t)
+	s := db.NewSession()
+	defer s.Close()
+
+	manualView, err := GetProjectViewByID(s, 4)
+	require.NoError(t, err)
+	require.Equal(t, BucketConfigurationModeManual, manualView.BucketConfigurationMode)
+
+	buckets, err := GetTasksInBucketsForView(s, manualView, []*Project{{ID: 1}}, &taskSearchOptions{groupByProject: true}, &user.User{ID: 1})
+	require.NoError(t, err)
+
+	// Only the synthesized parent-project bucket must come back — the view's
+	// configured manual buckets must not leak through.
+	require.Len(t, buckets, 1)
+	assert.Equal(t, int64(1), buckets[0].ID, "expected the parent project bucket only")
+}

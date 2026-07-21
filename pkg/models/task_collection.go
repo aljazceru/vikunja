@@ -61,6 +61,12 @@ type TaskCollection struct {
 	// and the kanban buckets endpoint (buckets are per-project by design).
 	IncludeDescendants bool `query:"include_descendants" json:"-" doc:"If true, also return tasks from all descendant projects the user can read. Ignored for the buckets endpoint, saved filters, and cross-project listings."`
 
+	// If true, a kanban buckets response is grouped into one bucket per project
+	// (parent plus readable descendants), regardless of the view's configured
+	// bucket mode. Lets the client toggle "group by project" per request without
+	// changing the persisted view. Ignored by the flat-task endpoints.
+	GroupByProject bool `query:"group_by_project" json:"-" doc:"If true, group the kanban buckets response by project (parent plus readable descendants), overriding the view's bucket configuration mode. Only meaningful for the buckets endpoint."`
+
 	isSavedFilter bool
 
 	// forceFlatTasks makes ReadAll always return []*Task, never []*Bucket, even
@@ -407,10 +413,13 @@ func (tf *TaskCollection) ReadAll(s *xorm.Session, a web.Auth, search string, pa
 	opts.perPage = perPage
 	opts.expand = tf.Expand
 	opts.isSavedFilter = tf.isSavedFilter
+	opts.groupByProject = tf.GroupByProject
 
 	// Project-mode boards are inherently a parent-plus-descendants grouping, so
-	// pull descendant tasks in regardless of the client flag.
-	if view != nil && view.BucketConfigurationMode == BucketConfigurationModeProject {
+	// pull descendant tasks in regardless of the client flag. The same applies
+	// when the client asks to group by project on the fly (toggle on a manual
+	// board) — it's the same descendant set.
+	if view != nil && (view.BucketConfigurationMode == BucketConfigurationModeProject || tf.GroupByProject) {
 		tf.IncludeDescendants = true
 	}
 

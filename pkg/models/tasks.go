@@ -226,6 +226,7 @@ type taskSearchOptions struct {
 	projectIDs         []int64
 	expand             []TaskCollectionExpandable
 	projectViewID      int64
+	groupByProject     bool
 
 	// userProvidedSort distinguishes an explicit sort_by from the id/position
 	// defaults appended later, so relevance ordering only replaces the default sort.

@@ -447,7 +447,12 @@ const bucketDraggableComponentData = computed(() => ({
 const project = computed(() => projectId.value ? projectStore.projects[projectId.value] : null)
 const view = computed(() => project.value?.views.find(v => v.id === props.viewId) as IProjectView || null)
 const canWrite = computed(() => baseStore.currentProject?.maxPermission > Permissions.READ && view.value.bucketConfigurationMode === 'manual')
-const isProjectMode = computed(() => view.value?.bucketConfigurationMode === 'project')
+// Seamless grouping: either the view is explicitly in project mode, OR the
+// "Show subproject tasks" toggle is on for a project that has children. In the
+// second case the board groups by project on the fly — no per-view config.
+const hasChildProjects = computed(() => projectStore.getChildProjects(projectId.value).length > 0)
+const groupByProject = computed(() => authStore.settings.frontendSettings.showSubprojectTasks && hasChildProjects.value)
+const isProjectMode = computed(() => view.value?.bucketConfigurationMode === 'project' || groupByProject.value)
 const hasWritePermission = computed(() => (baseStore.currentProject?.maxPermission ?? 0) > Permissions.READ)
 // Dragging is enabled for manual-write boards and for project-mode boards,
 // where dragging a card across columns moves the task to that project.
@@ -498,13 +503,14 @@ watch(
 		params: params.value,
 		projectId: projectId.value,
 		viewId: props.viewId,
+		groupByProject: groupByProject.value,
 	}),
-	({params, projectId, viewId}) => {
+	({params, projectId, viewId, groupByProject}) => {
 		if (projectId === undefined || Number(projectId) === 0) {
 			return
 		}
 		collapsedBuckets.value = getCollapsedBucketState(projectId)
-		kanbanStore.loadBucketsForProject(projectId, viewId, params)
+		kanbanStore.loadBucketsForProject(projectId, viewId, {...params, group_by_project: groupByProject})
 	},
 	{
 		immediate: true,
@@ -599,7 +605,7 @@ async function updateTaskPosition(e) {
 			await taskStore.update({...task, projectId: newBucket.id})
 		} catch (e) {
 			error(e)
-			kanbanStore.loadBucketsForProject(projectIdWithFallback.value, props.viewId, params.value)
+			kanbanStore.loadBucketsForProject(projectIdWithFallback.value, props.viewId, {...params.value, group_by_project: groupByProject.value})
 		} finally {
 			taskUpdating.value[task.id] = false
 		}
@@ -801,7 +807,7 @@ function handleRecurringTaskCompletion() {
 		
 	if (filterContainsDateFields) {
 		// Reload the kanban board to refresh tasks that now match/don't match the filter
-		kanbanStore.loadBucketsForProject(projectId.value, props.viewId, params.value)
+		kanbanStore.loadBucketsForProject(projectId.value, props.viewId, {...params.value, group_by_project: groupByProject.value})
 	}
 }
 
