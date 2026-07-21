@@ -271,3 +271,46 @@ func TestBucket_Update(t *testing.T) {
 		testAndAssertBucketUpdate(t, b, s)
 	})
 }
+
+// Project-mode board: one synthetic bucket per project. Project 34 is the
+// parent of 17 (both owned by user 6); task 23 lives in 34, task 26 in 17.
+// A project-mode view on 34 must yield two buckets — one per project — each
+// holding only that project's tasks.
+func TestGetTasksInBucketsForView_ProjectMode(t *testing.T) {
+	db.LoadAndAssertFixtures(t)
+	s := db.NewSession()
+	defer s.Close()
+
+	view := &ProjectView{
+		ID:                      9999,
+		ProjectID:               34,
+		ViewKind:                ProjectViewKindKanban,
+		BucketConfigurationMode: BucketConfigurationModeProject,
+	}
+	// Simulate the parent+descendants set that getRelevantProjectsFromCollection
+	// produces when IncludeDescendants is on.
+	projects := []*Project{{ID: 34}, {ID: 17}}
+
+	buckets, err := GetTasksInBucketsForView(s, view, projects, &taskSearchOptions{}, &user.User{ID: 6})
+	require.NoError(t, err)
+
+	bucketByID := map[int64]*Bucket{}
+	for _, b := range buckets {
+		bucketByID[b.ID] = b
+	}
+	// Bucket IDs are project IDs; parent first.
+	assert.Equal(t, []int64{34, 17}, []int64{buckets[0].ID, buckets[1].ID}, "parent bucket first, then descendant")
+	assert.Contains(t, bucketByID, int64(34))
+	assert.Contains(t, bucketByID, int64(17))
+
+	taskIDs := func(b *Bucket) []int64 {
+		ids := make([]int64, 0, len(b.Tasks))
+		for _, tk := range b.Tasks {
+			ids = append(ids, tk.ID)
+		}
+		return ids
+	}
+	assert.Contains(t, taskIDs(bucketByID[34]), int64(23), "parent bucket holds the parent's own task #23")
+	assert.Contains(t, taskIDs(bucketByID[17]), int64(26), "descendant bucket holds task #26")
+	assert.NotContains(t, taskIDs(bucketByID[34]), int64(26), "descendant task must not leak into the parent bucket")
+}

@@ -408,6 +408,12 @@ func (tf *TaskCollection) ReadAll(s *xorm.Session, a web.Auth, search string, pa
 	opts.expand = tf.Expand
 	opts.isSavedFilter = tf.isSavedFilter
 
+	// Project-mode boards are inherently a parent-plus-descendants grouping, so
+	// pull descendant tasks in regardless of the client flag.
+	if view != nil && view.BucketConfigurationMode == BucketConfigurationModeProject {
+		tf.IncludeDescendants = true
+	}
+
 	if view != nil {
 		var hasOrderByPosition bool
 		for _, param := range opts.sortby {

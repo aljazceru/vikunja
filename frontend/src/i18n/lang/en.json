@@ -564,6 +564,7 @@
       "bucketConfigMode": "Bucket configuration mode",
       "bucketConfig": "Bucket configuration",
       "bucketConfigManual": "Manual",
+      "bucketConfigProject": "Group by project",
       "filter": "Filter",
       "create": "Create view",
       "createSuccess": "The view was created successfully.",

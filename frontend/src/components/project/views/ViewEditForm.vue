@@ -229,6 +229,15 @@ function handleBubbleSave() {
 					>
 					{{ $t('project.views.filter') }}
 				</label>
+				<label class="radio">
+					<input
+						v-model="view.bucketConfigurationMode"
+						type="radio"
+						name="configMode"
+						value="project"
+					>
+					{{ $t('project.views.bucketConfigProject') }}
+				</label>
 			</div>
 		</div>
 

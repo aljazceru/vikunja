@@ -17,6 +17,7 @@
 package models
 
 import (
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -183,6 +184,52 @@ func GetTasksInBucketsForView(s *xorm.Session, view *ProjectView, projects []*Pr
 		}
 	}
 
+	// Project mode: synthesize one bucket per project in `projects` (the parent
+	// followed by readable descendants — see getRelevantProjectsFromCollection).
+	// The bucket ID is the project ID, which is stable and what the frontend uses
+	// as the drag-move target. The bucket query then filters project_id = <id>.
+	if view.BucketConfigurationMode == BucketConfigurationModeProject && len(projects) > 0 {
+		projectIDs := make([]int64, 0, len(projects))
+		for _, p := range projects {
+			projectIDs = append(projectIDs, p.ID)
+		}
+		projectMap, perr := GetProjectsMapByIDs(s, projectIDs)
+		if perr != nil {
+			err = perr
+			return
+		}
+		// Parent first, then descendants by title — same order as the list-view grouping.
+		others := make([]*Project, 0, len(projects))
+		for _, p := range projects {
+			if p.ID == view.ProjectID {
+				continue
+			}
+			others = append(others, projectMap[p.ID])
+		}
+		sort.Slice(others, func(i, j int) bool {
+			return others[i].Title < others[j].Title
+		})
+		ordered := make([]*Project, 0, len(projects))
+		if parent := projectMap[view.ProjectID]; parent != nil {
+			ordered = append(ordered, parent)
+		}
+		ordered = append(ordered, others...)
+		for i, p := range ordered {
+			if p == nil {
+				continue
+			}
+			buckets = append(buckets, &Bucket{
+				ID:            p.ID,
+				Title:         p.Title,
+				ProjectViewID: view.ID,
+				Position:      float64(i),
+				CreatedByID:   auth.GetID(),
+				Created:       time.Now(),
+				Updated:       time.Now(),
+			})
+		}
+	}
+
 	// Make a map from the bucket slice with their id as key so that we can use it to put the tasks in their buckets
 	bucketMap := make(map[int64]*Bucket, len(buckets))
 	userIDs := make([]int64, 0, len(buckets))
@@ -212,6 +259,13 @@ func GetTasksInBucketsForView(s *xorm.Session, view *ProjectView, projects []*Pr
 			orderBy:       orderAscending,
 			sortBy:        taskPropertyPosition,
 		},
+	}
+	// Positions are per-view and meaningless across projects; sort project-mode
+	// columns by due date then id (the default tiebreaker appended later).
+	if view.BucketConfigurationMode == BucketConfigurationModeProject {
+		opts.sortby = []*sortParam{
+			{sortBy: taskPropertyDueDate, orderBy: orderAscending},
+		}
 	}
 
 	for _, filter := range opts.parsedFilters {
@@ -243,6 +297,10 @@ func GetTasksInBucketsForView(s *xorm.Session, view *ProjectView, projects []*Pr
 				if view.BucketConfiguration[id].Filter.Search != "" {
 					opts.search = view.BucketConfiguration[id].Filter.Search
 				}
+			}
+			// Project mode: the bucket id IS the project id, so scope tasks to it.
+			if view.BucketConfigurationMode == BucketConfigurationModeProject {
+				bucketFilter = taskPropertyProjectID + " = " + strconv.FormatInt(id, 10)
 			}
 
 			var filterString string
