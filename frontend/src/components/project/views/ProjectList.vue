@@ -52,8 +52,51 @@
 						</ButtonLink>
 					</Nothing>
 
+					<template v-if="isGroupedByProject && tasks.length > 0">
+						<div
+							v-for="group in groupedTasks"
+							:key="group.project?.id ?? 'unknown'"
+							class="project-section"
+						>
+							<div
+								class="project-section__header"
+								role="button"
+								tabindex="0"
+								@click="toggleSection(group.project?.id)"
+								@keyup.enter="toggleSection(group.project?.id)"
+							>
+								<Icon
+									:icon="isSectionCollapsed(group.project?.id) ? 'chevron-right' : 'chevron-down'"
+									class="project-section__chevron"
+								/>
+								<ColorBubble
+									v-if="group.project?.hexColor"
+									:color="group.project.hexColor"
+								/>
+								<span class="project-section__title">{{ group.project?.title ?? $t('project.noDescriptionAvailable') }}</span>
+								<span class="project-section__count">{{ group.tasks.length }}</span>
+							</div>
+							<ul
+								v-if="!isSectionCollapsed(group.project?.id)"
+								class="tasks project-section__tasks"
+							>
+								<li
+									v-for="t in group.tasks"
+									:key="t.id"
+								>
+									<SingleTaskInProject
+										:show-list-color="false"
+										:can-mark-as-done="canWrite || isPseudoProject"
+										:the-task="t"
+										:all-tasks="allTasks"
+										@taskUpdated="updateTasks"
+									/>
+								</li>
+							</ul>
+						</div>
+					</template>
 					<draggable
-						v-if="tasks && tasks.length > 0"
+						v-else-if="tasks && tasks.length > 0"
 						v-model="tasks"
 						:group="{name: 'tasks', put: false}"
 						:disabled="!canDragTasks || !isPositionSorting"
@@ -117,6 +160,7 @@ import Nothing from '@/components/misc/Nothing.vue'
 import Pagination from '@/components/misc/Pagination.vue'
 import SortPopup from '@/components/project/partials/SortPopup.vue'
 import SubprojectsToggle from '@/components/project/partials/SubprojectsToggle.vue'
+import ColorBubble from '@/components/misc/ColorBubble.vue'
 
 import {useTaskList} from '@/composables/useTaskList'
 import {useTaskDragToProject} from '@/composables/useTaskDragToProject'
@@ -128,6 +172,8 @@ import {isSavedFilter, useSavedFilter} from '@/services/savedFilter'
 
 import {useBaseStore} from '@/stores/base'
 import {useTaskStore} from '@/stores/tasks'
+import {useAuthStore} from '@/stores/auth'
+import {useProjectStore} from '@/stores/projects'
 
 import type {IProject} from '@/modelTypes/IProject'
 import type {IProjectView} from '@/modelTypes/IProjectView'
@@ -206,6 +252,49 @@ onMounted(async () => {
 })
 
 const canDragTasks = computed(() => canWrite.value || isSavedFilter(project.value))
+
+const authStore = useAuthStore()
+const projectStore = useProjectStore()
+
+// When subproject tasks are included, group the flat task list into one
+// collapsible section per source project (parent first, then descendants by
+// title) — matches Todoist's sectioned list.
+const isGroupedByProject = computed(() =>
+	authStore.settings.frontendSettings.showSubprojectTasks &&
+	projectStore.getChildProjects(projectId.value).length > 0,
+)
+
+const groupedTasks = computed(() => {
+	const groups = new Map<number, ITask[]>()
+	for (const t of tasks.value) {
+		if (!groups.has(t.projectId)) groups.set(t.projectId, [])
+		groups.get(t.projectId)!.push(t)
+	}
+	const result: { project: IProject | undefined; tasks: ITask[] }[] = []
+	const pushGroup = (pid: number) => {
+		const ts = groups.get(pid)
+		if (!ts || ts.length === 0) return
+		result.push({project: projectStore.projects[pid], tasks: ts})
+		groups.delete(pid)
+	}
+	if (project.value) pushGroup(project.value.id)
+	const remaining = [...groups.keys()].sort((a, b) =>
+		(projectStore.projects[a]?.title ?? '').localeCompare(projectStore.projects[b]?.title ?? ''))
+	remaining.forEach(pushGroup)
+	return result
+})
+
+const collapsedSections = ref<Set<number>>(new Set())
+function toggleSection(pid: number | undefined) {
+	if (pid === undefined) return
+	const next = new Set(collapsedSections.value)
+	if (next.has(pid)) next.delete(pid)
+	else next.add(pid)
+	collapsedSections.value = next
+}
+function isSectionCollapsed(pid: number | undefined) {
+	return pid !== undefined && collapsedSections.value.has(pid)
+}
 
 const isTouchDevice = ref(false)
 if (typeof window !== 'undefined') {
@@ -381,6 +470,45 @@ onBeforeUnmount(() => {
 		inset-block-start: 3rem;
 		inset-inline-end: 0;
 		max-inline-size: 300px;
+	}
+}
+
+.project-section {
+	&:not(:first-child) {
+		border-block-start: 1px solid var(--border);
+	}
+
+	&__header {
+		display: flex;
+		align-items: center;
+		gap: .5rem;
+		padding: .75rem 1rem;
+		cursor: pointer;
+		user-select: none;
+		font-weight: bold;
+
+		&:focus-visible {
+			outline: 2px solid var(--primary);
+			outline-offset: -2px;
+		}
+	}
+
+	&__chevron {
+		font-size: .75rem;
+		color: var(--grey-500);
+	}
+
+	&__title {
+		margin-inline-end: auto;
+	}
+
+	&__count {
+		color: var(--grey-500);
+		font-weight: normal;
+	}
+
+	&__tasks {
+		padding-block-start: 0;
 	}
 }
 
