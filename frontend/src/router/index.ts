@@ -19,6 +19,7 @@ import Register from '@/views/user/Register.vue'
 import LinkSharingAuth from '@/views/sharing/LinkSharingAuth.vue'
 import OpenIdAuth from '@/views/user/OpenIdAuth.vue'
 import UpcomingTasks from '@/views/tasks/ShowTasks.vue'
+import OverviewTasks from '@/views/tasks/OverviewTasks.vue'
 
 import NotFoundComponent from '@/views/404.vue'
 
@@ -213,6 +214,12 @@ const router = createRouter({
 			name: 'task.detail',
 			component: () => import('@/views/tasks/TaskDetailView.vue'),
 			props: route => ({ taskId: Number(route.params.id as string) }),
+		},
+		{
+			// Must come before /tasks/:id so it is not shadowed by the task id param.
+			path: '/tasks/overview',
+			name: 'tasks.overview',
+			component: OverviewTasks,
 		},
 		{
 			path: '/tasks/by/upcoming',

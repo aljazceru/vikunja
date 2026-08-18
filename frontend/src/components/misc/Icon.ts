@@ -10,8 +10,11 @@ import {
 	faArrowUpFromBracket,
 	faArrowUpRightFromSquare,
 	faArrowUpShortWide,
+	faBarsStaggered,
 	faBold,
 	faItalic,
+	faFlag,
+	faArrowsRotate,
 	faStrikethrough,
 	faCode,
 	faBars,
@@ -160,6 +163,9 @@ library.add(faHistory)
 library.add(faImage)
 library.add(faKeyboard)
 library.add(faLayerGroup)
+library.add(faBarsStaggered)
+library.add(faFlag)
+library.add(faArrowsRotate)
 library.add(faList)
 library.add(faListOl)
 library.add(faLock)

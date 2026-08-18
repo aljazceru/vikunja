@@ -762,7 +762,8 @@
     "home": "Vikunja home",
     "toggleChildProjects": "Toggle sub-projects",
     "main": "Main navigation",
-    "savedFilters": "Saved filters"
+    "savedFilters": "Saved filters",
+    "allTasks": "All tasks"
   },
   "misc": {
     "loading": "Loading…",
@@ -1227,6 +1228,24 @@
       "dateTime": "Combine any of the date formats with \"{time}\" (or {timePM}) to set a time.",
       "repeats": "Repeating tasks",
       "repeatsDescription": "To set a task as repeating in an interval, simply add '{suffix}' to the task text. The amount needs to be a number and can be omitted to use just the type (see examples)."
+    },
+    "overview": {
+      "title": "All open tasks",
+      "subtitle": "{total} open tasks across {projects} projects",
+      "overdueCount": "{count} overdue",
+      "refresh": "Refresh",
+      "noTasks": "Nothing open — everything is done. Nice!",
+      "showingOf": "Showing {shown} of {total} tasks. Use filters in a project to narrow things down.",
+      "emptyColumn": "Nothing here",
+      "laneOverdue": "{count} overdue",
+      "laneNext": "Next: {date}",
+      "closeDetail": "Close task details",
+      "detailTitle": "Task details",
+      "openTaskDetail": "Open full task detail",
+      "columns": {
+        "todo": "To do",
+        "progress": "In progress"
+      }
     }
   },
   "team": {
