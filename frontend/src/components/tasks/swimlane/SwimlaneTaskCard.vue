@@ -5,12 +5,15 @@
 			'is-selected': selected,
 			'is-done': task.done,
 		}"
+		data-cy="swimlane-card"
+		:data-task-id="task.id"
 		@click.exact="$emit('open', task)"
 	>
 		<div class="swimlane-card__top">
 			<BaseButton
 				class="swimlane-card__check"
 				:class="{'is-checked': task.done}"
+				data-cy="task-done-checkbox"
 				:aria-label="task.done
 					? $t('task.overview.markAsUndone')
 					: $t('task.overview.markAsDone')"

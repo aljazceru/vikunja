@@ -1,5 +1,8 @@
 <template>
-	<div class="swimlane-column">
+	<div
+		class="swimlane-column"
+		:data-cy="`swimlane-column-${column}`"
+	>
 		<div class="swimlane-column__title">
 			{{ $t(translationKey) }}
 			<span class="swimlane-column__count">

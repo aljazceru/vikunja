@@ -2,6 +2,8 @@
 	<div
 		class="project-lane"
 		:class="{'is-collapsed': collapsed}"
+		data-cy="project-lane"
+		:data-project-id="project.id"
 	>
 		<button
 			class="project-lane__label"
@@ -15,7 +17,10 @@
 				v-if="project.hexColor !== ''"
 				:color="getProjectColor(project)"
 			/>
-			<span class="project-lane__title">
+			<span
+				class="project-lane__title"
+				data-cy="lane-title"
+			>
 				{{ project.title }}
 			</span>
 			<span class="project-lane__count">
@@ -24,6 +29,7 @@
 			<span
 				v-if="lane.overdueCount > 0"
 				class="project-lane__overdue"
+				data-cy="lane-overdue"
 			>
 				{{ $t('task.overview.laneOverdue', {count: lane.overdueCount}) }}
 			</span>

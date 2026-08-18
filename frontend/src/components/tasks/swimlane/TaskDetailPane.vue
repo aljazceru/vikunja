@@ -2,6 +2,7 @@
 	<section
 		class="task-detail-pane"
 		:class="{'is-open': open}"
+		data-cy="task-detail-pane"
 		:aria-label="$t('task.overview.detailTitle')"
 	>
 		<div
@@ -19,6 +20,7 @@
 				</div>
 				<BaseButton
 					class="task-detail-pane__close"
+					data-cy="task-detail-pane-close"
 					:aria-label="$t('task.overview.closeDetail')"
 					@click="$emit('close')"
 				>
@@ -28,7 +30,10 @@
 				</BaseButton>
 			</div>
 
-			<h3 class="task-detail-pane__title">
+			<h3
+				class="task-detail-pane__title"
+				data-cy="task-detail-pane-title"
+			>
 				{{ task.title }}
 			</h3>
 			<div class="task-detail-pane__meta">

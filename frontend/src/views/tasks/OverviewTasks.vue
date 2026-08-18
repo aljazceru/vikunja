@@ -26,7 +26,7 @@
 					icon="arrows-rotate"
 					:shadow="false"
 					:loading="isLoading"
-					@click="reload"
+					@click="load"
 				>
 					{{ $t('task.overview.refresh') }}
 				</XButton>
@@ -38,8 +38,11 @@
 			/>
 			<SwimlaneBoard
 				v-else-if="lanes.length > 0"
-				ref="board"
+				:lanes="lanes"
+				:tasks="tasks"
+				:total="total"
 				@select="selectTask"
+				@updated="applyUpdate"
 			/>
 			<Message
 				v-else
@@ -67,7 +70,7 @@
 </template>
 
 <script lang="ts" setup>
-import {computed, ref} from 'vue'
+import {onMounted, ref} from 'vue'
 
 import SwimlaneBoard from '@/components/tasks/swimlane/SwimlaneBoard.vue'
 import TaskDetailPane from '@/components/tasks/swimlane/TaskDetailPane.vue'
@@ -75,26 +78,30 @@ import Loading from '@/components/misc/Loading.vue'
 import Message from '@/components/misc/Message.vue'
 import XButton from '@/components/input/Button.vue'
 
+import {useSwimlaneTasks} from '@/composables/useSwimlaneTasks'
+
 import type {ITask} from '@/modelTypes/ITask'
 
-const board = ref<InstanceType<typeof SwimlaneBoard> | null>(null)
-
-const isLoading = computed(() => board.value?.isLoading ?? true)
-const total = computed(() => board.value?.total ?? 0)
-const overdueCount = computed(() => board.value?.overdueCount ?? 0)
-const lanes = computed(() => board.value?.lanes ?? [])
+const {
+	isLoading,
+	tasks,
+	total,
+	overdueCount,
+	lanes,
+	load,
+	applyUpdate,
+} = useSwimlaneTasks()
 
 const selectedTask = ref<ITask | null>(null)
 
-function reload() {
-	board.value?.reload()
-}
+onMounted(() => load())
 
 function selectTask(task: ITask | null) {
 	selectedTask.value = task
 }
 
 function onTaskUpdated(task: ITask) {
+	applyUpdate(task)
 	if (selectedTask.value?.id === task.id) {
 		selectedTask.value = task.done ? null : task
 	}

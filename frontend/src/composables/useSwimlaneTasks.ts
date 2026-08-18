@@ -76,7 +76,12 @@ export function useSwimlaneTasks() {
 					per_page: PAGE_SIZE,
 				}, page)
 				collected.push(...pageTasks)
-				total.value = (taskService.totalPages - 1) * PAGE_SIZE + taskService.resultCount
+				// The pagination headers describe the whole result set, not just this
+				// page: reconstruct the total from the last page's count. A result
+				// count of 0 means the whole filter matches nothing.
+				total.value = taskService.resultCount === 0
+					? 0
+					: (taskService.totalPages - 1) * PAGE_SIZE + taskService.resultCount
 				page++
 			} while (page <= taskService.totalPages && collected.length < MAX_TASKS)
 			tasks.value = collected

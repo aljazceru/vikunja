@@ -1,5 +1,8 @@
 <template>
-	<div class="swimlane-board">
+	<div
+		class="swimlane-board"
+		data-cy="swimlane-overview"
+	>
 		<div class="swimlane-board__header">
 			<div class="swimlane-board__corner">
 				{{ $t('task.overview.projects', {count: lanes.length}) }}
@@ -8,6 +11,7 @@
 				v-for="column in SWIMLANE_COLUMNS"
 				:key="column.key"
 				class="swimlane-board__column-title"
+				:data-cy="`column-title-${column.key}`"
 			>
 				{{ $t(column.translationKey) }}
 				<span class="swimlane-board__column-count">
@@ -25,7 +29,7 @@
 			:selected-task-id="selectedTaskId"
 			@toggle-collapse="() => toggleCollapse(lane.project.id)"
 			@open="openTask"
-			@updated="onTaskUpdated"
+			@updated="t => $emit('updated', t)"
 		/>
 
 		<p
@@ -38,33 +42,30 @@
 </template>
 
 <script lang="ts" setup>
-import {onMounted, ref, watch} from 'vue'
+import {ref, watch} from 'vue'
 
 import ProjectLane from './ProjectLane.vue'
 
 import {
 	SWIMLANE_COLUMNS,
 	columnOfTask,
-	useSwimlaneTasks,
+	type SwimlaneLane,
 	type SwimlaneColumnKey,
 } from '@/composables/useSwimlaneTasks'
 
 import type {ITask} from '@/modelTypes/ITask'
 import type {IProject} from '@/modelTypes/IProject'
 
-const emit = defineEmits<{
-	'select': [task: ITask | null]
+const props = defineProps<{
+	lanes: SwimlaneLane[]
+	tasks: ITask[]
+	total: number
 }>()
 
-const {
-	isLoading,
-	tasks,
-	total,
-	overdueCount,
-	lanes,
-	load,
-	applyUpdate,
-} = useSwimlaneTasks()
+const emit = defineEmits<{
+	'select': [task: ITask | null]
+	'updated': [task: ITask]
+}>()
 
 const selectedTaskId = ref<ITask['id'] | null>(null)
 
@@ -72,13 +73,11 @@ const selectedTaskId = ref<ITask['id'] | null>(null)
 const STORAGE_KEY = 'swimlane-overview-collapsed-projects'
 const collapsedProjects = ref<Set<IProject['id']>>(new Set())
 
-function restoreCollapsed() {
-	try {
-		const stored = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]')
-		collapsedProjects.value = new Set(Array.isArray(stored) ? stored : [])
-	} catch {
-		collapsedProjects.value = new Set()
-	}
+try {
+	const stored = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]')
+	collapsedProjects.value = new Set(Array.isArray(stored) ? stored : [])
+} catch {
+	collapsedProjects.value = new Set()
 }
 
 function toggleCollapse(projectId: IProject['id']) {
@@ -93,7 +92,7 @@ function toggleCollapse(projectId: IProject['id']) {
 }
 
 function tasksInColumn(column: SwimlaneColumnKey): number {
-	return tasks.value.filter(t => columnOfTask(t) === column).length
+	return props.tasks.filter(t => columnOfTask(t) === column).length
 }
 
 function openTask(task: ITask) {
@@ -101,34 +100,14 @@ function openTask(task: ITask) {
 	emit('select', task)
 }
 
-function onTaskUpdated(task: ITask) {
-	applyUpdate(task)
-	if (task.id === selectedTaskId.value && task.done) {
-		selectedTaskId.value = null
-		emit('select', null)
-	}
-}
-
-// Keep the selected task in sync with updates (e.g. after a drag between
-// columns changed its percent done).
-watch(tasks, () => {
+// Clear the selection when its task disappears from the open-task set
+// (e.g. it was completed somewhere else in the board).
+watch(() => props.tasks, () => {
 	if (selectedTaskId.value === null) return
-	const stillThere = tasks.value.some(t => t.id === selectedTaskId.value)
-	if (!stillThere) {
+	if (!props.tasks.some(t => t.id === selectedTaskId.value)) {
 		selectedTaskId.value = null
 		emit('select', null)
 	}
-})
-
-restoreCollapsed()
-onMounted(() => load())
-
-defineExpose({
-	isLoading,
-	lanes,
-	overdueCount,
-	total,
-	reload: load,
 })
 </script>
 
