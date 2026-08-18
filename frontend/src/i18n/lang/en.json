@@ -1230,8 +1230,9 @@
       "repeatsDescription": "To set a task as repeating in an interval, simply add '{suffix}' to the task text. The amount needs to be a number and can be omitted to use just the type (see examples)."
     },
     "overview": {
+      "markAsDone": "Mark task as done",
+      "markAsUndone": "Mark task as undone",
       "title": "All open tasks",
-      "subtitle": "{total} open tasks across {projects} projects",
       "overdueCount": "{count} overdue",
       "refresh": "Refresh",
       "noTasks": "Nothing open — everything is done. Nice!",
@@ -1245,7 +1246,9 @@
       "columns": {
         "todo": "To do",
         "progress": "In progress"
-      }
+      },
+      "projects": "{count} projects",
+      "taskCount": "{count} open task | {count} open tasks"
     }
   },
   "team": {

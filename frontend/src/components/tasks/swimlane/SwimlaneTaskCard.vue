@@ -4,33 +4,35 @@
 		:class="{
 			'is-selected': selected,
 			'is-done': task.done,
-			'is-overdue': isOverdue,
 		}"
 		@click.exact="$emit('open', task)"
 	>
 		<div class="swimlane-card__top">
-			<FancyCheckbox
+			<BaseButton
 				class="swimlane-card__check"
+				:class="{'is-checked': task.done}"
+				:aria-label="task.done
+					? $t('task.overview.markAsUndone')
+					: $t('task.overview.markAsDone')"
 				:disabled="loading"
-				:model-value="task.done"
-				@update:modelValue="toggleDone"
-				@click.stop
-			/>
+				@click.stop="toggleDone(!task.done)"
+			>
+				<span class="icon">
+					<Icon icon="check" />
+				</span>
+			</BaseButton>
 			<div class="swimlane-card__title">
 				{{ task.title }}
 			</div>
-			<span class="swimlane-card__identifier">
-				{{ task.identifier }}
-			</span>
 		</div>
 
-		<ProgressBar
-			v-if="task.percentDone > 0"
-			class="swimlane-card__progress"
-			:value="task.percentDone * 100"
-		/>
-
 		<div class="swimlane-card__meta">
+			<span
+				v-if="task.identifier !== ''"
+				class="swimlane-card__identifier"
+			>
+				{{ task.identifier }}
+			</span>
 			<Labels
 				v-if="task.labels.length > 0"
 				:labels="task.labels"
@@ -80,11 +82,10 @@
 <script lang="ts" setup>
 import {computed, ref} from 'vue'
 
-import FancyCheckbox from '@/components/input/FancyCheckbox.vue'
+import BaseButton from '@/components/base/BaseButton.vue'
 import Labels from '@/components/tasks/partials/Labels.vue'
 import ChecklistSummary from '@/components/tasks/partials/ChecklistSummary.vue'
 import AssigneeList from '@/components/tasks/partials/AssigneeList.vue'
-import ProgressBar from '@/components/misc/ProgressBar.vue'
 
 import {PRIORITIES} from '@/constants/priorities'
 import {formatDateLong, formatDisplayDate, formatISO} from '@/helpers/time/formatDate'
@@ -121,12 +122,12 @@ const isToday = computed(() => {
 	return due.toDateString() === now.value.toDateString()
 })
 
-async function toggleDone(checked: boolean) {
+async function toggleDone(done: boolean) {
 	loading.value = true
 	try {
 		const updated = await taskStore.update({
 			...props.task,
-			done: checked,
+			done,
 		})
 		emit('updated', updated)
 	} finally {
@@ -139,20 +140,24 @@ async function toggleDone(checked: boolean) {
 .swimlane-card {
 	background: var(--white);
 	border: 1px solid var(--border);
-	border-radius: var(--radius);
-	padding: .6rem .7rem;
+	border-radius: .625rem;
+	padding: .65rem .7rem;
 	cursor: pointer;
 	transition: border-color 100ms ease, box-shadow 100ms ease, transform 100ms ease;
 
 	&:hover {
 		border-color: var(--border-hover);
-		box-shadow: var(--shadow-sm);
+		box-shadow: hsla(var(--grey-500-hsl), .12) 0 4px 12px;
 		transform: translateY(-1px);
 	}
 
 	&.is-selected {
 		border-color: var(--primary);
 		box-shadow: 0 0 0 1px var(--primary);
+
+		&:hover {
+			box-shadow: hsla(var(--primary-hsl), .25) 0 4px 12px;
+		}
 	}
 
 	&.is-done {
@@ -167,48 +172,76 @@ async function toggleDone(checked: boolean) {
 .swimlane-card__top {
 	display: flex;
 	align-items: flex-start;
-	gap: .5rem;
+	gap: .55rem;
 }
 
 .swimlane-card__check {
 	flex-shrink: 0;
+	inline-size: 1rem;
+	block-size: 1rem;
+	border-radius: 50%;
+	border: 1.5px solid var(--grey-300);
+	color: transparent;
+	padding: 0;
 	margin-block-start: .1rem;
+	display: grid;
+	place-items: center;
+	transition: border-color 100ms ease, background-color 100ms ease;
+
+	&:hover {
+		border-color: var(--primary);
+	}
+
+	.icon {
+		font-size: .55rem;
+	}
+
+	&.is-checked {
+		background: var(--primary);
+		border-color: var(--primary);
+		color: var(--white);
+	}
 }
 
 .swimlane-card__title {
 	flex: 1;
-	font-size: .9rem;
-	line-height: 1.4;
+	font-size: .875rem;
+	line-height: 1.45;
 	word-break: break-word;
-}
-
-.swimlane-card__identifier {
-	flex-shrink: 0;
-	font-size: .7rem;
-	color: var(--grey-500);
-	font-family: var(--family-monospace);
-	padding-block-start: .15rem;
-}
-
-.swimlane-card__progress {
-	margin-block-start: .5rem;
 }
 
 .swimlane-card__meta {
 	display: flex;
 	align-items: center;
 	flex-wrap: wrap;
-	gap: .4rem;
-	margin-block-start: .55rem;
-	min-block-size: 20px;
+	gap: .45rem;
+	margin-block-start: .5rem;
+	padding-inline-start: 1.55rem;
+	min-block-size: 1.25rem;
+
+	@media screen and (width <= $tablet) {
+		padding-inline-start: 0;
+	}
+}
+
+.swimlane-card__identifier {
+	font-size: .68rem;
+	color: var(--grey-400);
+}
+
+.swimlane-card__labels,
+.swimlane-card__checklist {
+	font-size: .7rem;
 }
 
 .swimlane-card__due {
 	display: inline-flex;
 	align-items: center;
 	gap: .25rem;
-	font-size: .75rem;
-	color: var(--grey-600);
+	font-size: .7rem;
+	font-weight: 500;
+	color: var(--grey-500);
+	margin-inline-start: auto;
 
 	&.is-today {
 		color: var(--primary);
@@ -222,8 +255,8 @@ async function toggleDone(checked: boolean) {
 }
 
 .swimlane-card__priority {
-	font-size: .75rem;
-	color: var(--grey-400);
+	font-size: .7rem;
+	color: var(--grey-300);
 
 	&.is-medium {
 		color: var(--warning);
@@ -236,5 +269,11 @@ async function toggleDone(checked: boolean) {
 
 .swimlane-card__assignees {
 	margin-inline-start: auto;
+
+	// when a due chip or priority is present, keep assignees next to them
+	.swimlane-card__due ~ &,
+	.swimlane-card__priority ~ & {
+		margin-inline-start: 0;
+	}
 }
 </style>

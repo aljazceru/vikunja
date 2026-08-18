@@ -4,7 +4,7 @@
 		:class="{'is-collapsed': collapsed}"
 	>
 		<button
-			class="project-lane__header"
+			class="project-lane__label"
 			:aria-expanded="!collapsed"
 			@click="$emit('toggleCollapse')"
 		>
@@ -18,26 +18,24 @@
 			<span class="project-lane__title">
 				{{ project.title }}
 			</span>
+			<span class="project-lane__count">
+				{{ lane.tasks.length }}
+			</span>
 			<span
 				v-if="lane.overdueCount > 0"
 				class="project-lane__overdue"
 			>
 				{{ $t('task.overview.laneOverdue', {count: lane.overdueCount}) }}
 			</span>
-			<span class="project-lane__count">
-				{{ lane.tasks.length }}
-			</span>
 			<span
-				v-if="lane.nextDueDate && !collapsed"
+				v-if="lane.nextDueDate"
 				class="project-lane__next"
+				:class="{'is-late': lane.overdueCount > 0}"
 			>
 				{{ $t('task.overview.laneNext', {date: formatDisplayDate(lane.nextDueDate)}) }}
 			</span>
 		</button>
-		<div
-			v-if="!collapsed"
-			class="project-lane__columns"
-		>
+		<div class="project-lane__columns">
 			<SwimlaneColumn
 				v-for="column in SWIMLANE_COLUMNS"
 				:key="column.key"
@@ -49,12 +47,6 @@
 				@open="t => $emit('open', t)"
 				@updated="t => $emit('updated', t)"
 			/>
-		</div>
-		<div
-			v-else-if="lane.nextDueDate"
-			class="project-lane__next project-lane__next--collapsed"
-		>
-			{{ $t('task.overview.laneNext', {date: formatDisplayDate(lane.nextDueDate)}) }}
 		</div>
 	</div>
 </template>
@@ -89,21 +81,38 @@ function getProjectColor(project: SwimlaneProject): string {
 
 <style lang="scss" scoped>
 .project-lane {
-	display: flex;
-	flex-direction: column;
-	gap: .5rem;
-	min-inline-size: 0;
+	display: grid;
+	grid-template-columns: 13rem repeat(2, minmax(0, 1fr));
+	gap: .625rem;
+	align-items: start;
+
+	&.is-collapsed {
+		grid-template-columns: 13rem;
+
+		.project-lane__columns {
+			display: none;
+		}
+
+		.project-lane__arrow {
+			transform: rotate(-90deg);
+		}
+	}
+
+	@media screen and (width <= $tablet) {
+		display: block;
+	}
 }
 
-.project-lane__header {
+.project-lane__label {
 	display: flex;
 	align-items: center;
+	flex-wrap: wrap;
 	gap: .5rem;
 	inline-size: 100%;
 	background: var(--white);
-	border: 1px solid var(--border-light);
-	border-radius: var(--radius);
-	padding: .55rem .7rem;
+	border: 1px solid var(--border);
+	border-radius: .625rem;
+	padding: .7rem .75rem;
 	font: inherit;
 	text-align: start;
 	cursor: pointer;
@@ -112,32 +121,38 @@ function getProjectColor(project: SwimlaneProject): string {
 	&:hover {
 		border-color: var(--border-hover);
 	}
+
+	@media screen and (width <= $tablet) {
+		position: sticky;
+		inset-block-start: 0;
+		z-index: 2;
+		margin-block-end: .5rem;
+	}
 }
 
 .project-lane__arrow {
 	color: var(--grey-400);
 	font-size: .75rem;
 	transition: transform 100ms ease;
-
-	.is-collapsed & {
-		transform: rotate(-90deg);
-	}
 }
 
 .project-lane__title {
 	font-weight: 600;
-	font-size: .9rem;
+	font-size: .85rem;
 	white-space: nowrap;
 	overflow: hidden;
 	text-overflow: ellipsis;
+	max-inline-size: 100%;
 }
 
 .project-lane__count {
+	margin-inline-start: auto;
 	font-size: .7rem;
-	background: var(--grey-200);
-	color: var(--grey-600);
+	font-weight: 600;
+	color: var(--grey-500);
+	background: var(--grey-100);
 	border-radius: 999px;
-	padding: .05rem .5rem;
+	padding: .1rem .5rem;
 }
 
 .project-lane__overdue {
@@ -146,32 +161,31 @@ function getProjectColor(project: SwimlaneProject): string {
 	color: var(--danger);
 	background: var(--danger-light);
 	border-radius: 999px;
-	padding: .05rem .5rem;
+	padding: .1rem .5rem;
 }
 
 .project-lane__next {
-	margin-inline-start: auto;
+	flex-basis: 100%;
 	font-size: .7rem;
 	color: var(--grey-500);
 	white-space: nowrap;
 	overflow: hidden;
 	text-overflow: ellipsis;
 
-	&--collapsed {
-		padding: 0 .7rem;
+	&.is-late {
+		color: var(--danger);
+		font-weight: 600;
 	}
 }
 
 .project-lane__columns {
-	display: grid;
-	grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-	gap: .6rem;
+	display: contents;
 
 	@media screen and (width <= $tablet) {
-		// On mobile the two columns become a swipeable row, like the classic
-		// mobile kanban pattern (one column fills most of the viewport).
+		// Mobile kanban pattern: columns become a swipeable row under the
+		// sticky lane header.
 		display: flex;
-		gap: .6rem;
+		gap: .625rem;
 		overflow-x: auto;
 		scroll-snap-type: x mandatory;
 		padding-block-end: .4rem;

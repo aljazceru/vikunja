@@ -1,6 +1,6 @@
 <template>
 	<div class="swimlane-column">
-		<div class="swimlane-column__title mbe-2">
+		<div class="swimlane-column__title">
 			{{ $t(translationKey) }}
 			<span class="swimlane-column__count">
 				{{ tasks.length }}
@@ -101,51 +101,49 @@ async function onChange(event: {added?: {element: ITask}, removed?: {element: IT
 }
 
 .swimlane-column__title {
-	display: flex;
-	align-items: center;
-	gap: .4rem;
-	font-size: .7rem;
-	font-weight: 700;
-	text-transform: uppercase;
-	letter-spacing: .04em;
-	color: var(--grey-500);
-	padding: 0 .1rem .4rem;
+	display: none;
 
-	// only visible on mobile, where there is no shared header row
-	@media screen and (width >= $tablet) {
-		display: none;
+	// Only visible on mobile, where the shared desktop header row is hidden
+	@media screen and (width <= $tablet) {
+		display: flex;
+		align-items: center;
+		gap: .4rem;
+		font-size: .68rem;
+		font-weight: 700;
+		text-transform: uppercase;
+		letter-spacing: .04em;
+		color: var(--grey-500);
+		padding: 0 .15rem .4rem;
 	}
 }
 
 .swimlane-column__count {
-	font-size: .65rem;
-	background: var(--grey-200);
+	font-size: .62rem;
+	background: var(--grey-100);
 	color: var(--grey-600);
 	border-radius: 999px;
-	padding: 0 .4rem;
+	padding: .05rem .45rem;
 }
 
 .swimlane-column__bucket {
 	flex: 1;
-	background: var(--background);
-	border: 1px solid var(--border-light);
-	border-radius: var(--radius);
-	padding: .4rem;
+	background: var(--grey-50);
+	border: 1px solid var(--grey-100);
+	border-radius: .625rem;
+	padding: .45rem;
 	min-block-size: 3rem;
-	display: flex;
-	flex-direction: column;
 }
 
 .swimlane-column__cards {
 	display: flex;
 	flex-direction: column;
-	gap: .4rem;
+	gap: .45rem;
 }
 
 .swimlane-column__empty {
-	color: var(--grey-400);
+	color: var(--grey-300);
 	font-size: .75rem;
 	text-align: center;
-	padding: .75rem 0;
+	padding: .9rem 0 .6rem;
 }
 </style>

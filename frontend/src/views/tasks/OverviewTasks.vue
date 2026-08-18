@@ -2,36 +2,29 @@
 	<div class="task-overview">
 		<div class="task-overview__main">
 			<div class="task-overview__header">
-				<div>
+				<div class="task-overview__heading">
 					<h1 class="task-overview__title">
 						{{ $t('task.overview.title') }}
 					</h1>
-					<p
+					<div
 						v-if="!isLoading"
-						class="task-overview__subtitle"
+						class="task-overview__chips"
 					>
-						<i18n-t
-							keypath="task.overview.subtitle"
-							tag="span"
-						>
-							<template #total>
-								{{ total }}
-							</template>
-							<template #projects>
-								{{ lanes.length }}
-							</template>
-						</i18n-t>
+						<span class="task-overview__chip">
+							{{ $t('task.overview.taskCount', total) }}
+						</span>
 						<span
 							v-if="overdueCount > 0"
-							class="task-overview__overdue"
+							class="task-overview__chip is-warning"
 						>
 							{{ $t('task.overview.overdueCount', {count: overdueCount}) }}
 						</span>
-					</p>
+					</div>
 				</div>
 				<XButton
 					variant="secondary"
 					icon="arrows-rotate"
+					:shadow="false"
 					:loading="isLoading"
 					@click="reload"
 				>
@@ -43,12 +36,11 @@
 				v-if="isLoading && lanes.length === 0"
 				class="task-overview__loading"
 			/>
-			<template v-else-if="lanes.length > 0">
-				<SwimlaneBoard
-					ref="board"
-					@select="selectTask"
-				/>
-			</template>
+			<SwimlaneBoard
+				v-else-if="lanes.length > 0"
+				ref="board"
+				@select="selectTask"
+			/>
 			<Message
 				v-else
 				class="task-overview__empty"
@@ -58,7 +50,7 @@
 			</Message>
 
 			<div
-				v-if="sheetOpen"
+				v-if="selectedTask !== null"
 				class="task-overview__scrim"
 				@click="selectTask(null)"
 			/>
@@ -67,7 +59,7 @@
 		<TaskDetailPane
 			:class="{'is-empty': selectedTask === null}"
 			:task="selectedTask"
-			:open="sheetOpen"
+			:open="selectedTask !== null"
 			@close="selectTask(null)"
 			@updated="onTaskUpdated"
 		/>
@@ -93,10 +85,6 @@ const overdueCount = computed(() => board.value?.overdueCount ?? 0)
 const lanes = computed(() => board.value?.lanes ?? [])
 
 const selectedTask = ref<ITask | null>(null)
-// On mobile the pane is a bottom sheet that only appears when a task was
-// picked; on desktop the pane is always mounted (empty state when nothing is
-// selected).
-const sheetOpen = computed(() => selectedTask.value !== null)
 
 function reload() {
 	board.value?.reload()
@@ -114,12 +102,22 @@ function onTaskUpdated(task: ITask) {
 </script>
 
 <style lang="scss" scoped>
+// Focus look scoped to this page only: the accent switches to indigo for
+// everything inside the overview while the rest of the app is untouched.
 .task-overview {
+	--primary-h: 240deg;
+	--primary-s: 60%;
+	--primary-l: 60%;
+	--primary-hsl: var(--primary-h), var(--primary-s), var(--primary-l);
+	--primary: hsla(var(--primary-h), var(--primary-s), var(--primary-l), var(--primary-a));
+	--link: var(--primary);
+	--switch-view-active-background: var(--primary);
+
 	display: grid;
 	grid-template-columns: minmax(0, 1fr) minmax(20rem, 22rem);
-	gap: 0;
 	align-items: start;
-	min-block-size: 100%;
+	block-size: 100%;
+	background: #fbfbfd;
 
 	@media screen and (width <= $tablet) {
 		display: block;
@@ -129,33 +127,50 @@ function onTaskUpdated(task: ITask) {
 .task-overview__main {
 	display: flex;
 	flex-direction: column;
-	gap: .75rem;
-	padding: .75rem 1rem 2rem;
+	gap: .9rem;
+	padding: 1rem 1.25rem 2rem;
 	min-inline-size: 0;
 }
 
 .task-overview__header {
 	display: flex;
-	align-items: flex-start;
+	align-items: center;
 	gap: 1rem;
 }
 
+.task-overview__heading {
+	display: flex;
+	align-items: baseline;
+	flex-wrap: wrap;
+	gap: .75rem;
+	min-inline-size: 0;
+}
+
 .task-overview__title {
-	font-size: 1.35rem;
+	font-size: 1.15rem;
 	font-weight: 700;
 	margin: 0;
 }
 
-.task-overview__subtitle {
-	color: var(--grey-600);
-	font-size: .85rem;
-	margin: .15rem 0 0;
+.task-overview__chips {
+	display: flex;
+	align-items: center;
+	gap: .4rem;
 }
 
-.task-overview__overdue {
-	color: var(--danger);
-	font-weight: 600;
-	margin-inline-start: .5rem;
+.task-overview__chip {
+	font-size: .7rem;
+	font-weight: 500;
+	color: var(--grey-600);
+	background: var(--grey-100);
+	border-radius: 999px;
+	padding: .15rem .6rem;
+
+	&.is-warning {
+		color: var(--danger);
+		background: var(--danger-light);
+		font-weight: 600;
+	}
 }
 
 .task-overview__loading,

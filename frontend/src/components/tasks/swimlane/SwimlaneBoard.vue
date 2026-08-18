@@ -1,6 +1,9 @@
 <template>
 	<div class="swimlane-board">
 		<div class="swimlane-board__header">
+			<div class="swimlane-board__corner">
+				{{ $t('task.overview.projects', {count: lanes.length}) }}
+			</div>
 			<div
 				v-for="column in SWIMLANE_COLUMNS"
 				:key="column.key"
@@ -20,7 +23,7 @@
 			:project="lane.project"
 			:collapsed="collapsedProjects.has(lane.project.id)"
 			:selected-task-id="selectedTaskId"
-			@toggleCollapse="() => toggleCollapse(lane.project.id)"
+			@toggle-collapse="() => toggleCollapse(lane.project.id)"
 			@open="openTask"
 			@updated="onTaskUpdated"
 		/>
@@ -133,49 +136,56 @@ defineExpose({
 .swimlane-board {
 	display: flex;
 	flex-direction: column;
-	gap: .6rem;
+	gap: .625rem;
 	min-inline-size: 0;
 }
 
 .swimlane-board__header {
 	display: grid;
-	grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-	gap: .6rem;
+	grid-template-columns: 13rem repeat(2, minmax(0, 1fr));
+	gap: .625rem;
 	position: sticky;
 	inset-block-start: 0;
-	z-index: 1;
-	padding-block-end: .2rem;
-	background: linear-gradient(180deg, var(--background) 85%, transparent);
+	z-index: 3;
+	padding-block-end: .35rem;
+	background: var(--site-background);
 
 	@media screen and (width <= $tablet) {
 		display: none;
 	}
 }
 
+.swimlane-board__corner {
+	font-size: .68rem;
+	font-weight: 600;
+	text-transform: uppercase;
+	letter-spacing: .04em;
+	color: var(--grey-400);
+	padding: .5rem .15rem;
+}
+
 .swimlane-board__column-title {
 	display: flex;
 	align-items: center;
-	gap: .4rem;
-	font-size: .7rem;
+	gap: .45rem;
+	font-size: .68rem;
 	font-weight: 700;
 	text-transform: uppercase;
 	letter-spacing: .04em;
 	color: var(--grey-500);
-	background: var(--white);
-	border: 1px solid var(--border-light);
-	border-radius: var(--radius);
-	padding: .45rem .6rem;
+	padding: .5rem .6rem;
 }
 
 .swimlane-board__column-count {
 	margin-inline-start: auto;
-	font-size: .65rem;
-	color: var(--grey-500);
+	font-size: .62rem;
+	font-weight: 600;
+	color: var(--grey-400);
 }
 
 .swimlane-board__notice {
 	font-size: .75rem;
 	color: var(--grey-500);
-	padding: .5rem .1rem 0;
+	padding: .5rem .15rem 0;
 }
 </style>
