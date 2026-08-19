@@ -10,14 +10,13 @@
 			</span>
 		</div>
 		<draggable
-			class="swimlane-column__bucket"
 			:item-key="(task: ITask) => `task-${task.id}`"
 			:list="localTasks"
 			:group="`lane-${projectId}`"
 			:animation="150"
 			item-tag="div"
 			:component-data="{
-				class: 'swimlane-column__cards',
+				class: 'swimlane-column__bucket',
 			}"
 			@change="onChange"
 		>
@@ -129,18 +128,15 @@ async function onChange(event: {added?: {element: ITask}, removed?: {element: IT
 }
 
 .swimlane-column__bucket {
-	flex: 1;
-	background: var(--grey-50);
-	border: 1px solid var(--grey-100);
-	border-radius: .625rem;
-	padding: .45rem;
-	min-block-size: 3rem;
-}
-
-.swimlane-column__cards {
 	display: flex;
 	flex-direction: column;
 	gap: .45rem;
+	flex: 1;
+	background: var(--site-background);
+	border: 1px solid var(--border);
+	border-radius: .625rem;
+	padding: .45rem;
+	min-block-size: 3rem;
 }
 
 .swimlane-column__empty {

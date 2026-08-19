@@ -195,7 +195,7 @@ function setPercentDone(percentDone: number) {
 	flex-direction: column;
 	gap: .75rem;
 	background: var(--white);
-	border-inline-start: 1px solid var(--border-light);
+	border-inline-start: 1px solid var(--border);
 	padding: 1rem 1.1rem;
 	overflow-y: auto;
 
@@ -210,7 +210,7 @@ function setPercentDone(percentDone: number) {
 		block-size: 88vh;
 		z-index: 40;
 		border-inline-start: none;
-		border-block-start: 1px solid var(--border-light);
+		border-block-start: 1px solid var(--border);
 		border-radius: var(--radius) var(--radius) 0 0;
 		box-shadow: 0 -1rem 2.5rem hsla(var(--grey-500-hsl), .3);
 		padding-block-start: .5rem;
@@ -268,7 +268,7 @@ function setPercentDone(percentDone: number) {
 .task-detail-pane__props {
 	display: flex;
 	flex-direction: column;
-	border-block-start: 1px solid var(--border-light);
+	border-block-start: 1px solid var(--border);
 }
 
 .task-detail-pane__prop {
@@ -276,7 +276,7 @@ function setPercentDone(percentDone: number) {
 	align-items: center;
 	gap: .75rem;
 	padding: .55rem 0;
-	border-block-end: 1px solid var(--border-light);
+	border-block-end: 1px solid var(--border);
 	font-size: .85rem;
 	min-block-size: 2.4rem;
 }

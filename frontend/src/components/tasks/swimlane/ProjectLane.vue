@@ -121,6 +121,7 @@ function getProjectColor(project: SwimlaneProject): string {
 	padding: .7rem .75rem;
 	font: inherit;
 	text-align: start;
+	color: var(--text);
 	cursor: pointer;
 	transition: border-color 100ms ease;
 

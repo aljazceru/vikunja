@@ -124,7 +124,12 @@ function onTaskUpdated(task: ITask) {
 	grid-template-columns: minmax(0, 1fr) minmax(20rem, 22rem);
 	align-items: start;
 	block-size: 100%;
-	background: #fbfbfd;
+	background: var(--site-background);
+
+	html.dark & {
+		// Lighter indigo keeps sufficient contrast on dark surfaces
+		--primary-l: 68%;
+	}
 
 	@media screen and (width <= $tablet) {
 		display: block;
