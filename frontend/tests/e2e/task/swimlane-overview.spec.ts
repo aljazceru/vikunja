@@ -75,8 +75,10 @@ test.describe('Swimlane overview', () => {
 		await page.locator('[data-task-id="3"]').click()
 		await expect(page.getByTestId('task-detail-pane-title')).toHaveText('Swimlane halfway task')
 
+		// Set priority to URGENT (4) and verify it persists via the API-driven update
+		await page.locator('[data-cy="task-detail-pane"] select').nth(1).selectOption('4')
 		const laneA = page.locator(`[data-cy="project-lane"][data-project-id="${projectA.id}"]`)
-		await expect(laneA.getByTestId('swimlane-column-progress').locator('[data-task-id="3"]')).toBeVisible()
+		await expect(page.locator('[data-task-id="3"] .swimlane-card__priority.is-high')).toBeVisible()
 
 		// Drop the progress back to 0 — the card must move to the todo column
 		await page.locator('[data-cy="task-detail-pane"] select').first().selectOption('0')
@@ -86,6 +88,25 @@ test.describe('Swimlane overview', () => {
 		// Close the pane
 		await page.getByTestId('task-detail-pane-close').click()
 		await expect(page.getByTestId('task-detail-pane-title')).not.toBeVisible()
+	})
+
+	test('editing the due date from the detail pane updates the card', async ({authenticatedPage: page}) => {
+		await seedBoard()
+
+		await page.goto('/tasks/overview')
+
+		// Open the overdue task — it shows a red due chip
+		await page.locator('[data-task-id="2"]').click()
+		await expect(page.getByTestId('task-detail-pane-title')).toHaveText('Swimlane overdue task')
+		await expect(page.locator('[data-task-id="2"] .swimlane-card__due.is-overdue')).toBeVisible()
+
+		// Remove the due date — the overdue chip on the card must disappear
+		await page.locator('.task-detail-pane__date .remove').click()
+		await expect(page.locator('[data-task-id="2"] .swimlane-card__due')).toHaveCount(0)
+
+		// It persists after reload
+		await page.reload()
+		await expect(page.locator('[data-task-id="2"] .swimlane-card__due')).toHaveCount(0)
 	})
 
 	test('completing a task from the card removes it and persists after reload', async ({authenticatedPage: page}) => {

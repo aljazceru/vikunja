@@ -47,7 +47,7 @@
 					<FancyCheckbox
 						:disabled="updating"
 						:model-value="task.done"
-						@update:modelValue="toggleDone"
+						@update:model-value="done => save({done})"
 					/>
 				</div>
 				<div class="task-detail-pane__prop">
@@ -55,57 +55,81 @@
 					<PercentDoneSelect
 						:disabled="updating"
 						:model-value="task.percentDone"
-						@update:modelValue="setPercentDone"
+						@update:model-value="percentDone => save({percentDone})"
 					/>
 				</div>
 				<div
-					v-if="task.dueDate !== null && task.dueDate.getTime() > 0"
 					class="task-detail-pane__prop"
+					:class="{'is-overdue': isOverdue}"
 				>
 					<span class="task-detail-pane__prop-label">{{ $t('task.attributes.dueDate') }}</span>
-					<span
-						class="task-detail-pane__due"
-						:class="{'is-overdue': isOverdue}"
-					>
-						{{ formatDateLong(task.dueDate) }}
-					</span>
+					<div class="task-detail-pane__date">
+						<Datepicker
+							v-model="dueDate"
+							:choose-date-label="$t('task.detail.chooseDueDate')"
+							:disabled="updating"
+							@closeOnChange="saveDueDate"
+						/>
+						<BaseButton
+							v-if="task.dueDate !== null && task.dueDate.getTime() > 0"
+							class="remove"
+							:aria-label="$t('task.detail.removeDueDate')"
+							@click="() => save({dueDate: null})"
+						>
+							<span class="icon is-small">
+								<Icon icon="times" />
+							</span>
+						</BaseButton>
+					</div>
 				</div>
 				<div class="task-detail-pane__prop">
 					<span class="task-detail-pane__prop-label">{{ $t('task.attributes.priority') }}</span>
-					<PriorityLabel
-						:priority="task.priority"
-						:done="task.done"
-						:show-all="true"
+					<PrioritySelect
+						:disabled="updating"
+						:model-value="task.priority"
+						@update:model-value="priority => save({priority})"
 					/>
 				</div>
-				<div
-					v-if="task.labels.length > 0"
-					class="task-detail-pane__prop"
-				>
-					<span class="task-detail-pane__prop-label">{{ $t('task.attributes.labels') }}</span>
-					<Labels :labels="task.labels" />
-				</div>
-				<div
-					v-if="task.assignees.length > 0"
-					class="task-detail-pane__prop"
-				>
+				<div class="task-detail-pane__prop task-detail-pane__prop--block">
 					<span class="task-detail-pane__prop-label">{{ $t('task.attributes.assignees') }}</span>
-					<AssigneeList
-						:assignees="task.assignees"
-						:avatar-size="24"
+					<EditAssignees
+						:model-value="task.assignees"
+						:task-id="task.id"
+						:project-id="task.projectId"
+						:disabled="updating"
+						:list-id="task.projectId"
+						@update:modelValue="assignees => save({assignees})"
+					/>
+				</div>
+				<div class="task-detail-pane__prop task-detail-pane__prop--block">
+					<span class="task-detail-pane__prop-label">{{ $t('task.attributes.labels') }}</span>
+					<EditLabels
+						:model-value="task.labels"
+						:task-id="task.id"
+						:disabled="updating"
+						@update:modelValue="labels => save({labels})"
+					/>
+				</div>
+				<div class="task-detail-pane__prop task-detail-pane__prop--block">
+					<span class="task-detail-pane__prop-label">{{ $t('task.attributes.reminders') }}</span>
+					<Reminders
+						v-model="reminders"
+						:disabled="updating"
+						:default-relative-to="remindersDefaultRelativeTo"
+						@update:modelValue="reminders => save({reminders})"
 					/>
 				</div>
 			</div>
 
-			<template v-if="!isEditorContentEmpty(task.description)">
-				<h4 class="task-detail-pane__section-title">
-					{{ $t('task.attributes.description') }}
-				</h4>
-				<TipTap
-					:model-value="task.description"
-					:is-edit-enabled="false"
-				/>
-			</template>
+			<h4 class="task-detail-pane__section-title">
+				{{ $t('task.attributes.description') }}
+			</h4>
+			<Description
+				:model-value="task"
+				:attachment-upload="attachmentUpload"
+				:can-write="!updating"
+				@update:modelValue="t => $emit('updated', t)"
+			/>
 
 			<div class="task-detail-pane__actions">
 				<XButton
@@ -120,26 +144,29 @@
 </template>
 
 <script lang="ts" setup>
-import {computed, ref} from 'vue'
+import {computed, ref, watch} from 'vue'
 
 import BaseButton from '@/components/base/BaseButton.vue'
 import ColorBubble from '@/components/misc/ColorBubble.vue'
 import FancyCheckbox from '@/components/input/FancyCheckbox.vue'
-import Labels from '@/components/tasks/partials/Labels.vue'
-import AssigneeList from '@/components/tasks/partials/AssigneeList.vue'
 import PercentDoneSelect from '@/components/tasks/partials/PercentDoneSelect.vue'
-import PriorityLabel from '@/components/tasks/partials/PriorityLabel.vue'
-import TipTap from '@/components/input/editor/TipTap.vue'
+import PrioritySelect from '@/components/tasks/partials/PrioritySelect.vue'
+import EditAssignees from '@/components/tasks/partials/EditAssignees.vue'
+import EditLabels from '@/components/tasks/partials/EditLabels.vue'
+import Reminders from '@/components/tasks/partials/Reminders.vue'
+import Description from '@/components/tasks/partials/Description.vue'
+import Datepicker from '@/components/input/Datepicker.vue'
 import XButton from '@/components/input/Button.vue'
 
-import {formatDateLong, formatDateSince} from '@/helpers/time/formatDate'
-import {isEditorContentEmpty} from '@/helpers/editorContentEmpty'
+import {formatDateSince} from '@/helpers/time/formatDate'
 import {getHexColor} from '@/models/task'
+import {uploadFile} from '@/helpers/attachments'
 import {useTaskStore} from '@/stores/tasks'
 import {useProjectStore} from '@/stores/projects'
 import {isTaskOverdue} from '@/composables/useSwimlaneTasks'
 
 import type {ITask} from '@/modelTypes/ITask'
+import type {ITaskReminder} from '@/modelTypes/ITaskReminder'
 
 const props = defineProps<{
 	task: ITask | null
@@ -160,11 +187,18 @@ const project = computed(() => props.task
 	? projectStore.projects[props.task.projectId]
 	: null)
 
-function bubbleColor(hexColor: string): string {
-	return getHexColor(hexColor) || hexColor
-}
+// Local copies for components that mutate a v-model before the save happens.
+const dueDate = ref<Date | null>(null)
+const reminders = ref<ITaskReminder[]>([])
+
+watch(() => props.task, task => {
+	dueDate.value = task?.dueDate && task.dueDate.getTime() > 0 ? task.dueDate : null
+	reminders.value = task?.reminders ?? []
+}, {immediate: true})
 
 const isOverdue = computed(() => props.task ? isTaskOverdue(props.task, new Date()) : false)
+
+const remindersDefaultRelativeTo = computed(() => 'due-date')
 
 async function save(changes: Partial<ITask>) {
 	if (!props.task) return
@@ -180,12 +214,19 @@ async function save(changes: Partial<ITask>) {
 	}
 }
 
-function toggleDone(done: boolean) {
-	save({done})
+function saveDueDate() {
+	if (!dueDate.value) return
+	save({dueDate: dueDate.value})
 }
 
-function setPercentDone(percentDone: number) {
-	save({percentDone})
+async function attachmentUpload(file: File, onSuccess?: (url: string) => void) {
+	if (!props.task) return []
+	const uploaded = await uploadFile(props.task.id, file, onSuccess)
+	return uploaded
+}
+
+function bubbleColor(hexColor: string): string {
+	return getHexColor(hexColor) || hexColor
 }
 </script>
 
@@ -198,6 +239,7 @@ function setPercentDone(percentDone: number) {
 	border-inline-start: 1px solid var(--border);
 	padding: 1rem 1.1rem;
 	overflow-y: auto;
+	max-block-size: 100vh;
 
 	.task-detail-pane__handle {
 		display: none;
@@ -279,6 +321,14 @@ function setPercentDone(percentDone: number) {
 	border-block-end: 1px solid var(--border);
 	font-size: .85rem;
 	min-block-size: 2.4rem;
+
+	&--block {
+		flex-wrap: wrap;
+
+		.task-detail-pane__prop-label {
+			flex-basis: 100%;
+		}
+	}
 }
 
 .task-detail-pane__prop-label {
@@ -286,13 +336,21 @@ function setPercentDone(percentDone: number) {
 	flex-shrink: 0;
 	color: var(--grey-500);
 	font-size: .75rem;
+
+	&:has(+ .task-detail-pane__date) {
+		color: var(--grey-500);
+	}
 }
 
-.task-detail-pane__due {
-	&.is-overdue {
-		color: var(--danger);
-		font-weight: 600;
-	}
+.task-detail-pane__date {
+	display: flex;
+	align-items: center;
+	gap: .35rem;
+}
+
+.task-detail-pane__prop.is-overdue .task-detail-pane__prop-label {
+	color: var(--danger);
+	font-weight: 600;
 }
 
 .task-detail-pane__section-title {
