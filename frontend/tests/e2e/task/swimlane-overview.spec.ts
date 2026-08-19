@@ -139,4 +139,71 @@ test.describe('Swimlane overview', () => {
 		await laneA.locator('.project-lane__label').click()
 		await expect(laneA.getByTestId('swimlane-column-todo')).toBeVisible()
 	})
+
+	test('detail pane can be resized wider and persists after reload', async ({authenticatedPage: page}) => {
+		await page.setViewportSize({width: 1280, height: 720})
+		await seedBoard()
+
+		await page.goto('/tasks/overview')
+		await page.locator('[data-task-id="1"]').click()
+		await expect(page.getByTestId('task-detail-pane-title')).toBeVisible()
+
+		const pane = page.locator('.task-detail-pane')
+		const initialBox = await pane.boundingBox()
+		expect(initialBox).not.toBeNull()
+
+		const handle = page.locator('.task-overview__resize-handle')
+		await expect(handle).toBeVisible()
+		const handleBox = await handle.boundingBox()
+		expect(handleBox).not.toBeNull()
+
+		// Drag the handle 200px to the left — pane gets wider by ~200px
+		const startX = handleBox!.x + handleBox!.width / 2
+		const startY = handleBox!.y + handleBox!.height / 2
+		await page.mouse.move(startX, startY)
+		await page.mouse.down()
+		await page.mouse.move(startX - 200, startY, {steps: 10})
+		await page.mouse.up()
+
+		const resizedBox = await pane.boundingBox()
+		expect(resizedBox!.width).toBeGreaterThan(initialBox!.width + 150)
+
+		// The board shrinks accordingly
+		const board = page.getByTestId('swimlane-overview')
+		const boardBox = await board.boundingBox()
+		expect(boardBox!.width).toBeLessThan(1280 - resizedBox!.width - 300)
+
+		// Persisted after reload
+		await page.reload()
+		await page.waitForTimeout(1500)
+		await page.locator('[data-task-id="1"]').click()
+		await expect(page.getByTestId('task-detail-pane-title')).toBeVisible()
+		const persistedBox = await pane.boundingBox()
+		expect(Math.abs(persistedBox!.width - resizedBox!.width)).toBeLessThan(5)
+	})
+
+	test('pane cannot be dragged below the minimum width', async ({authenticatedPage: page}) => {
+		await page.setViewportSize({width: 1280, height: 720})
+		await seedBoard()
+
+		await page.goto('/tasks/overview')
+		await page.locator('[data-task-id="1"]').click()
+		await expect(page.getByTestId('task-detail-pane-title')).toBeVisible()
+
+		const handle = page.locator('.task-overview__resize-handle')
+		const handleBox = await handle.boundingBox()
+		const startX = handleBox!.x + handleBox!.width / 2
+		const startY = handleBox!.y + handleBox!.height / 2
+
+		// Drag far to the right — pane clamps at the 280px minimum (measured on
+		// the wrap, which includes the 6px handle column)
+		await page.mouse.move(startX, startY)
+		await page.mouse.down()
+		await page.mouse.move(startX + 1200, startY, {steps: 10})
+		await page.mouse.up()
+
+		const clampedBox = await page.locator('.task-overview__pane-wrap').boundingBox()
+		expect(clampedBox!.width).toBeGreaterThanOrEqual(278)
+		expect(clampedBox!.width).toBeLessThanOrEqual(286)
+	})
 })

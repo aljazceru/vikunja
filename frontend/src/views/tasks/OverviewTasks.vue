@@ -1,5 +1,8 @@
 <template>
-	<div class="task-overview">
+	<div
+		class="task-overview"
+		:style="{'--pane-width': paneWidth}"
+	>
 		<div class="task-overview__main">
 			<div class="task-overview__header">
 				<div class="task-overview__heading">
@@ -59,18 +62,32 @@
 			/>
 		</div>
 
-		<TaskDetailPane
-			:class="{'is-empty': selectedTask === null}"
-			:task="selectedTask"
-			:open="selectedTask !== null"
-			@close="selectTask(null)"
-			@updated="onTaskUpdated"
-		/>
+		<div class="task-overview__pane-wrap">
+			<div
+				class="task-overview__resize-handle"
+				:class="{'is-resizing': isResizingPane}"
+				role="separator"
+				aria-orientation="vertical"
+				:aria-label="$t('task.overview.resizePane')"
+				tabindex="0"
+				@mousedown="startResize"
+				@touchstart="startResize"
+				@keydown.arrow-left.prevent="resizeByKeyboard(-40)"
+				@keydown.arrow-right.prevent="resizeByKeyboard(40)"
+			/>
+			<TaskDetailPane
+				:class="{'is-empty': selectedTask === null}"
+				:task="selectedTask"
+				:open="selectedTask !== null"
+				@close="selectTask(null)"
+				@updated="onTaskUpdated"
+			/>
+		</div>
 	</div>
 </template>
 
 <script lang="ts" setup>
-import {onMounted, ref} from 'vue'
+import {onMounted, onUnmounted, ref} from 'vue'
 
 import SwimlaneBoard from '@/components/tasks/swimlane/SwimlaneBoard.vue'
 import TaskDetailPane from '@/components/tasks/swimlane/TaskDetailPane.vue'
@@ -95,6 +112,75 @@ const {
 const selectedTask = ref<ITask | null>(null)
 
 onMounted(() => load())
+
+// --- Resizable detail pane -------------------------------------------------
+// The pane is the rightmost column, so its width follows the pointer distance
+// from the right window edge. Persisted per browser like the lane collapse
+// state; below the tablet breakpoint the pane is a sheet and cannot resize.
+const PANE_STORAGE_KEY = 'swimlane-overview-pane-width'
+const PANE_MIN_WIDTH = 280
+const PANE_MAX_WIDTH_FRAC = 0.55
+
+const paneWidth = ref('22rem')
+const isResizingPane = ref(false)
+
+try {
+	const stored = Number(localStorage.getItem(PANE_STORAGE_KEY))
+	if (Number.isFinite(stored) && stored >= PANE_MIN_WIDTH) {
+		paneWidth.value = `${stored}px`
+	}
+} catch {
+	// ignore malformed values
+}
+
+function paneMax(): number {
+	return Math.max(PANE_MIN_WIDTH + 200, Math.floor(window.innerWidth * PANE_MAX_WIDTH_FRAC))
+}
+
+function setPaneWidth(px: number) {
+	const clamped = Math.max(PANE_MIN_WIDTH, Math.min(paneMax(), px))
+	paneWidth.value = `${clamped}px`
+	localStorage.setItem(PANE_STORAGE_KEY, String(clamped))
+}
+
+function handleResize(event: MouseEvent | TouchEvent) {
+	const clientX = 'touches' in event ? event.touches[0]?.clientX : event.clientX
+	if (clientX === undefined) return
+	setPaneWidth(window.innerWidth - clientX)
+}
+
+let previousUserSelect: string | undefined
+let previousCursor: string | undefined
+
+function stopResize() {
+	isResizingPane.value = false
+	document.removeEventListener('mousemove', handleResize)
+	document.removeEventListener('mouseup', stopResize)
+	document.removeEventListener('touchmove', handleResize)
+	document.removeEventListener('touchend', stopResize)
+	document.body.style.userSelect = previousUserSelect
+	document.body.style.cursor = previousCursor
+}
+
+function startResize(event: MouseEvent | TouchEvent) {
+	event.preventDefault()
+	isResizingPane.value = true
+	previousUserSelect = document.body.style.userSelect
+	previousCursor = document.body.style.cursor
+	document.body.style.userSelect = 'none'
+	document.body.style.cursor = 'ew-resize'
+	document.addEventListener('mousemove', handleResize)
+	document.addEventListener('mouseup', stopResize)
+	document.addEventListener('touchmove', handleResize)
+	document.addEventListener('touchend', stopResize)
+}
+
+function resizeByKeyboard(delta: number) {
+	const current = Number.parseInt(paneWidth.value, 10) || PANE_MIN_WIDTH
+	setPaneWidth(current - delta)
+}
+
+onUnmounted(stopResize)
 
 function selectTask(task: ITask | null) {
 	selectedTask.value = task
@@ -121,7 +207,7 @@ function onTaskUpdated(task: ITask) {
 	--switch-view-active-background: var(--primary);
 
 	display: grid;
-	grid-template-columns: minmax(0, 1fr) minmax(20rem, 22rem);
+	grid-template-columns: minmax(0, 1fr) minmax(0, var(--pane-width, 22rem));
 	align-items: start;
 	block-size: 100%;
 	background: var(--site-background);
@@ -133,6 +219,54 @@ function onTaskUpdated(task: ITask) {
 
 	@media screen and (width <= $tablet) {
 		display: block;
+	}
+}
+
+.task-overview__pane-wrap {
+	display: grid;
+	grid-template-columns: 6px minmax(0, 1fr);
+	min-inline-size: 0;
+
+	@media screen and (width <= $tablet) {
+		display: contents;
+	}
+}
+
+.task-overview__resize-handle {
+	grid-column: 1;
+	align-self: stretch;
+	cursor: ew-resize;
+	background: transparent;
+	position: relative;
+	z-index: 5;
+
+	&::after {
+		content: '';
+		position: absolute;
+		inset-block: 0;
+		inset-inline: 2px;
+		border-radius: 999px;
+		background: var(--border);
+		opacity: 0;
+		transition: opacity $transition;
+	}
+
+	&:hover::after,
+	&:focus-visible::after,
+	&.is-resizing::after {
+		opacity: 1;
+	}
+
+	&.is-resizing::after {
+		background: var(--primary);
+	}
+
+	&:focus-visible {
+		outline: none;
+	}
+
+	@media screen and (width <= $tablet) {
+		display: none;
 	}
 }
 

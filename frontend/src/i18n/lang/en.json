@@ -1248,7 +1248,8 @@
         "progress": "In progress"
       },
       "projects": "{count} projects",
-      "taskCount": "{count} open task | {count} open tasks"
+      "taskCount": "{count} open task | {count} open tasks",
+      "resizePane": "Resize detail pane"
     }
   },
   "team": {
