@@ -252,7 +252,7 @@ async function toggleDone(done: boolean) {
 	}
 
 	&.is-overdue {
-		color: var(--danger);
+		color: var(--danger-text);
 		font-weight: 600;
 	}
 }

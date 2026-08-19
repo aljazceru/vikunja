@@ -165,8 +165,11 @@ function getProjectColor(project: SwimlaneProject): string {
 .project-lane__overdue {
 	font-size: .7rem;
 	font-weight: 600;
-	color: var(--danger);
-	background: var(--danger-light);
+	// Danger text on a faint translucent danger tint. --danger-text adapts
+	// per color scheme; the alpha tint reads as a soft red on light surfaces
+	// and a muted dark red on dark ones, instead of light-mode pink in dark.
+	color: var(--danger-text);
+	background: hsla(var(--danger-h), var(--danger-s), var(--danger-l), .12);
 	border-radius: 999px;
 	padding: .1rem .5rem;
 }
@@ -180,7 +183,7 @@ function getProjectColor(project: SwimlaneProject): string {
 	text-overflow: ellipsis;
 
 	&.is-late {
-		color: var(--danger);
+		color: var(--danger-text);
 		font-weight: 600;
 	}
 }

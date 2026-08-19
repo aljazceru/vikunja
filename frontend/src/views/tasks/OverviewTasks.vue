@@ -313,8 +313,8 @@ function onTaskUpdated(task: ITask) {
 	padding: .15rem .6rem;
 
 	&.is-warning {
-		color: var(--danger);
-		background: var(--danger-light);
+		color: var(--danger-text);
+		background: hsla(var(--danger-h), var(--danger-s), var(--danger-l), .12);
 		font-weight: 600;
 	}
 }
