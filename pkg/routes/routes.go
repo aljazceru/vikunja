@@ -54,7 +54,6 @@ package routes
 import (
 	"context"
 	"log/slog"
-	"net"
 	"strings"
 	"time"
 
@@ -91,7 +90,6 @@ import (
 	"github.com/getsentry/sentry-go"
 	"github.com/labstack/echo/v5"
 	"github.com/labstack/echo/v5/middleware"
-	"github.com/ulule/limiter/v3"
 )
 
 // matchCORSOrigin checks if an origin matches any of the allowed origin patterns.
@@ -139,23 +137,7 @@ func NewEcho() *echo.Echo {
 		NoGroupAutoRegister404Routes: true,
 	})
 
-	// Configure IP extraction to prevent rate limit bypass via spoofed headers.
-	// Echo's default RealIP() trusts X-Forwarded-For and X-Real-IP unconditionally,
-	// which allows attackers to bypass IP-based rate limits.
-	// See: https://echo.labstack.com/docs/ip-address
-	switch config.ServiceIPExtractionMethod.GetString() {
-	case "xff":
-		trustOptions := parseTrustedProxies(config.ServiceTrustedProxies.GetString())
-		e.IPExtractor = echo.ExtractIPFromXFFHeader(trustOptions...)
-		log.Debugf("IP extraction: X-Forwarded-For with %d trusted proxy ranges", len(trustOptions))
-	case "realip":
-		trustOptions := parseTrustedProxies(config.ServiceTrustedProxies.GetString())
-		e.IPExtractor = echo.ExtractIPFromRealIPHeader(trustOptions...)
-		log.Debugf("IP extraction: X-Real-IP with %d trusted proxy ranges", len(trustOptions))
-	default:
-		e.IPExtractor = echo.ExtractIPDirect()
-		log.Debugf("IP extraction: direct (TCP remote address)")
-	}
+	e.IPExtractor = newIPExtractor(config.ServiceIPExtractionMethod.GetString(), config.ServiceTrustedProxies.GetString())
 
 	e.Logger = log.NewEchoLogger(config.LogEnabled.GetBool(), config.LogHTTP.GetString(), config.LogFormat.GetString())
 
@@ -229,27 +211,6 @@ func NewEcho() *echo.Echo {
 	return e
 }
 
-func parseTrustedProxies(proxies string) []echo.TrustOption {
-	if proxies == "" {
-		return nil
-	}
-
-	var options []echo.TrustOption
-	for _, cidr := range strings.Split(proxies, ",") {
-		cidr = strings.TrimSpace(cidr)
-		if cidr == "" {
-			continue
-		}
-		_, ipNet, err := net.ParseCIDR(cidr)
-		if err != nil {
-			log.Warningf("Invalid trusted proxy CIDR %q: %v", cidr, err)
-			continue
-		}
-		options = append(options, echo.TrustIPRange(ipNet))
-	}
-	return options
-}
-
 func setupSentry(e *echo.Echo) {
 	if !config.SentryEnabled.GetBool() {
 		return
@@ -318,13 +279,16 @@ func RegisterRoutes(e *echo.Echo) {
 		}))
 	}
 
+	// Shared across both API versions so the budget is per IP, not per version.
+	wsRateLimit := unauthRateLimit()
+
 	// API Routes
 	a := e.Group("/api/v1")
-	registerAPIRoutes(a)
+	registerAPIRoutes(a, wsRateLimit)
 
 	// /api/v2 — Huma-backed API, scaffolded alongside /api/v1.
 	a2 := e.Group("/api/v2")
-	registerAPIRoutesV2(e, a2)
+	registerAPIRoutesV2(e, a2, wsRateLimit)
 
 	// Collect routes for API token permissions
 	// In Echo v5, we collect routes after registration using e.Router().Routes()
@@ -438,7 +402,7 @@ func gateV2AdminRoutes() echo.MiddlewareFunc {
 // registerAPIRoutesV2 wires the /api/v2 Echo group. Token middleware is
 // attached before any route so Huma's spec and Scalar docs share the
 // resource handlers' stack; unauthenticatedAPIPaths keeps them public.
-func registerAPIRoutesV2(e *echo.Echo, a *echo.Group) {
+func registerAPIRoutesV2(e *echo.Echo, a *echo.Group, wsRateLimit echo.MiddlewareFunc) {
 	a.Use(noStoreCacheControl())
 	a.Use(SetupTokenMiddleware())
 	// Match the authenticated v1 group: rate limiting and route metrics
@@ -460,13 +424,13 @@ func registerAPIRoutesV2(e *echo.Echo, a *echo.Group) {
 	// authenticates via its first message, so unauthenticatedAPIPaths exempts it
 	// from the group's JWT middleware. Health and the Atom feed are Huma ops and
 	// self-register via init()/RegisterAll.
-	a.GET("/ws", ws.UpgradeHandler)
+	a.GET("/ws", ws.UpgradeHandler, wsRateLimit)
 
 	// Resources self-register via init(); RegisterAll runs them all + AutoPatch.
 	apiv2.RegisterAll(api)
 }
 
-func registerAPIRoutes(a *echo.Group) {
+func registerAPIRoutes(a *echo.Group, wsRateLimit echo.MiddlewareFunc) {
 
 	// Prevent browsers from caching API responses. Without an explicit
 	// Cache-Control header browsers may heuristically cache JSON responses
@@ -485,19 +449,14 @@ func registerAPIRoutes(a *echo.Group) {
 	n.GET("/docs/redoc.standalone.js", apiv1.RedocJS)
 
 	// WebSocket (auth happens after upgrade via first message)
-	n.GET("/ws", ws.UpgradeHandler)
+	n.GET("/ws", ws.UpgradeHandler, wsRateLimit)
 
 	// Prometheus endpoint
 	setupMetrics(n)
 
 	// Separate route for unauthenticated routes to enable rate limits for it
 	ur := a.Group("")
-	rate := limiter.Rate{
-		Period: 60 * time.Second,
-		Limit:  config.RateLimitNoAuthRoutesLimit.GetInt64(),
-	}
-	rateLimiter := createRateLimiter(rate)
-	ur.Use(RateLimit(rateLimiter, "ip"))
+	ur.Use(unauthRateLimit())
 
 	if config.AuthLocalEnabled.GetBool() {
 		ur.POST("/register", apiv1.RegisterUser)
@@ -510,17 +469,20 @@ func registerAPIRoutes(a *echo.Group) {
 		ur.POST("/login", apiv1.Login)
 	}
 
-	// Refresh token endpoint — unauthenticated because it uses the refresh
-	// token cookie instead of a JWT bearer token.
-	ur.POST("/user/token/refresh", apiv1.RefreshToken)
-
 	if config.AuthOpenIDEnabled.GetBool() {
 		ur.POST("/auth/openid/:provider/callback", openid.HandleCallback)
 	}
 
+	tr := a.Group("")
+	tr.Use(tokenRefreshRateLimit())
+
+	// Refresh token endpoint — unauthenticated because it uses the refresh
+	// token cookie instead of a JWT bearer token.
+	tr.POST("/user/token/refresh", apiv1.RefreshToken)
+
 	// OAuth 2.0 token endpoint — unauthenticated because it validates
 	// credentials (authorization code or refresh token) itself.
-	ur.POST("/oauth/token", oauth2server.HandleToken)
+	tr.POST("/oauth/token", oauth2server.HandleToken)
 
 	// Testing
 	if config.ServiceTestingtoken.GetString() != "" {

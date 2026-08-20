@@ -17,7 +17,7 @@ vi.mock('@/stores/base', () => ({
 	useBaseStore: () => ({setHasTasks: vi.fn()}),
 }))
 
-import {buildDefaultRemindersForQuickAdd, runWrites, useTaskStore} from './tasks'
+import {buildDefaultRemindersForQuickAdd, useTaskStore} from './tasks'
 import {useLabelStore} from './labels'
 import LabelModel from '@/models/label'
 import {REMINDER_PERIOD_RELATIVE_TO_TYPES} from '@/types/IReminderPeriodRelativeTo'
@@ -64,42 +64,6 @@ describe('buildDefaultRemindersForQuickAdd', () => {
 	})
 })
 
-describe('runWrites', () => {
-	function deferredWrite() {
-		const inFlight: string[] = []
-		let maxConcurrent = 0
-		const completed: string[] = []
-		const write = async (item: string) => {
-			inFlight.push(item)
-			maxConcurrent = Math.max(maxConcurrent, inFlight.length)
-			await Promise.resolve()
-			inFlight.splice(inFlight.indexOf(item), 1)
-			completed.push(item)
-		}
-		return {write, completed, getMaxConcurrent: () => maxConcurrent}
-	}
-
-	it('runs all writes in parallel when concurrent', async () => {
-		const {write, completed, getMaxConcurrent} = deferredWrite()
-		await runWrites(['a', 'b', 'c'], write, true)
-		expect(completed).toHaveLength(3)
-		expect(getMaxConcurrent()).toBeGreaterThan(1)
-	})
-
-	it('runs writes one at a time when not concurrent', async () => {
-		const {write, completed, getMaxConcurrent} = deferredWrite()
-		await runWrites(['a', 'b', 'c'], write, false)
-		expect(completed).toEqual(['a', 'b', 'c'])
-		expect(getMaxConcurrent()).toBe(1)
-	})
-
-	it('does nothing for an empty list', async () => {
-		const {write, completed} = deferredWrite()
-		await runWrites([], write, false)
-		expect(completed).toHaveLength(0)
-	})
-})
-
 describe('ensureLabelsExist', () => {
 	beforeEach(() => {
 		setActivePinia(createPinia())
@@ -109,6 +73,7 @@ describe('ensureLabelsExist', () => {
 		const taskStore = useTaskStore()
 		const labelStore = useLabelStore()
 		labelStore.setLabels([{id: 1, title: 'existing'}] as ILabel[])
+		vi.spyOn(labelStore, 'loadAllLabels').mockResolvedValue([])
 
 		vi.spyOn(labelStore, 'createLabel').mockImplementation(async label => {
 			if (label.title === 'forbidden') {
@@ -124,5 +89,46 @@ describe('ensureLabelsExist', () => {
 		expect(titles).toContain('created')
 		expect(titles).not.toContain('forbidden')
 		expect(result).toHaveLength(2)
+	})
+
+	it('loads the labels before creating unknown ones and reuses what it finds', async () => {
+		const taskStore = useTaskStore()
+		const labelStore = useLabelStore()
+
+		vi.spyOn(labelStore, 'loadAllLabels').mockImplementation(async () => {
+			const loaded = [{id: 1, title: 'foo'}, {id: 2, title: 'bar'}] as ILabel[]
+			labelStore.setLabels(loaded)
+			return loaded
+		})
+		const createLabel = vi.spyOn(labelStore, 'createLabel')
+
+		const result = await taskStore.ensureLabelsExist(['foo', 'bar'])
+
+		expect(createLabel).not.toHaveBeenCalled()
+		expect(result.map(l => l.id).sort()).toEqual([1, 2])
+	})
+
+	it('does not load the labels when all of them are already known', async () => {
+		const taskStore = useTaskStore()
+		const labelStore = useLabelStore()
+		labelStore.setLabels([{id: 1, title: 'foo'}] as ILabel[])
+		const loadAllLabels = vi.spyOn(labelStore, 'loadAllLabels')
+
+		await taskStore.ensureLabelsExist(['foo'])
+
+		expect(loadAllLabels).not.toHaveBeenCalled()
+	})
+
+	it('still creates the label when loading them fails', async () => {
+		const taskStore = useTaskStore()
+		const labelStore = useLabelStore()
+
+		vi.spyOn(labelStore, 'loadAllLabels').mockRejectedValue(new Error('nope'))
+		vi.spyOn(labelStore, 'createLabel')
+			.mockImplementation(async label => new LabelModel({id: 42, title: label.title}))
+
+		const result = await taskStore.ensureLabelsExist(['foo'])
+
+		expect(result.map(l => l.title)).toEqual(['foo'])
 	})
 })

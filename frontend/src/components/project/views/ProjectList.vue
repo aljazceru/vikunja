@@ -38,8 +38,7 @@
 						v-if="!project?.isArchived && canWrite"
 						ref="addTaskRef"
 						class="list-view__add-task d-print-none"
-						:default-position="firstNewPosition"
-						@taskAdded="updateTaskList"
+						@tasksAdded="updateTaskList"
 					/>
 
 					<Nothing v-if="ctaVisible && tasks.length === 0 && !loading">
@@ -220,20 +219,11 @@ const tasks = ref<ITask[]>([])
 watch(
 	allTasks,
 	() => {
-		const isFiltered = isSavedFilter({id: projectId.value})
-		tasks.value = ([...allTasks.value]).filter(t => shouldShowTaskInListView(t, allTasks.value, isFiltered))
+		tasks.value = ([...allTasks.value]).filter(t => shouldShowTaskInListView(t, allTasks.value))
 	},
 )
 
 const isPositionSorting = computed(() => 'position' in sortByParam.value)
-
-const firstNewPosition = computed(() => {
-	if (tasks.value.length === 0) {
-		return 0
-	}
-
-	return calculateItemPosition(null, tasks.value[0].position)
-})
 
 const baseStore = useBaseStore()
 const taskStore = useTaskStore()
@@ -308,13 +298,13 @@ function focusNewTaskInput() {
 	addTaskRef.value?.focusTaskInput()
 }
 
-function updateTaskList(task: ITask) {
+function updateTaskList(newTasks: ITask[]) {
 	if (!isPositionSorting.value) {
 		// reload tasks with current filter and sorting
 		loadTasks()
 	} else {
 		allTasks.value = [
-			task,
+			...newTasks,
 			...allTasks.value,
 		]
 	}
