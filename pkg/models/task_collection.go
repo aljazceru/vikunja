@@ -56,6 +56,17 @@ type TaskCollection struct {
 	// You can set this multiple times with different values.
 	Expand []TaskCollectionExpandable `query:"expand" json:"-"`
 
+	// If true, the result also includes tasks from all descendant (sub-) projects the user can read.
+	// Only honored for a concrete project id; ignored for saved filters, the cross-project listing,
+	// and the kanban buckets endpoint (buckets are per-project by design).
+	IncludeDescendants bool `query:"include_descendants" json:"-" doc:"If true, also return tasks from all descendant projects the user can read. Ignored for the buckets endpoint, saved filters, and cross-project listings."`
+
+	// If true, a kanban buckets response is grouped into one bucket per project
+	// (parent plus readable descendants), regardless of the view's configured
+	// bucket mode. Lets the client toggle "group by project" per request without
+	// changing the persisted view. Ignored by the flat-task endpoints.
+	GroupByProject bool `query:"group_by_project" json:"-" doc:"If true, group the kanban buckets response by project (parent plus readable descendants), overriding the view's bucket configuration mode. Only meaningful for the buckets endpoint."`
+
 	isSavedFilter bool
 
 	// forceFlatTasks makes ReadAll always return []*Task, never []*Bucket, even
@@ -209,7 +220,38 @@ func getRelevantProjectsFromCollection(s *xorm.Session, a web.Auth, tf *TaskColl
 		}
 	}
 
-	return []*Project{{ID: tf.ProjectID}}, nil
+	projects = []*Project{{ID: tf.ProjectID}}
+	if !tf.IncludeDescendants {
+		return projects, nil
+	}
+
+	// Walk descendants and keep only those the user can read. The readable-set
+	// intersection is the permission check — a descendant without access is
+	// dropped here, before it ever reaches the task query.
+	descendantIDs, err := getDescendantProjectIDs(s, tf.ProjectID)
+	if err != nil {
+		return nil, err
+	}
+	if len(descendantIDs) == 0 {
+		return projects, nil
+	}
+	readable, _, _, err := getRawProjectsForUser(s, &projectOptions{
+		user: &user.User{ID: a.GetID()},
+		page: -1,
+	})
+	if err != nil {
+		return nil, err
+	}
+	readableSet := make(map[int64]bool, len(readable))
+	for _, p := range readable {
+		readableSet[p.ID] = true
+	}
+	for _, id := range descendantIDs {
+		if readableSet[id] {
+			projects = append(projects, &Project{ID: id})
+		}
+	}
+	return projects, nil
 }
 
 func getFilterValueForBucketFilter(filter string, view *ProjectView) (newFilter string, err error) {
@@ -371,6 +413,15 @@ func (tf *TaskCollection) ReadAll(s *xorm.Session, a web.Auth, search string, pa
 	opts.perPage = perPage
 	opts.expand = tf.Expand
 	opts.isSavedFilter = tf.isSavedFilter
+	opts.groupByProject = tf.GroupByProject
+
+	// Project-mode boards are inherently a parent-plus-descendants grouping, so
+	// pull descendant tasks in regardless of the client flag. The same applies
+	// when the client asks to group by project on the fly (toggle on a manual
+	// board) — it's the same descendant set.
+	if view != nil && (view.BucketConfigurationMode == BucketConfigurationModeProject || tf.GroupByProject) {
+		tf.IncludeDescendants = true
+	}
 
 	if view != nil {
 		var hasOrderByPosition bool

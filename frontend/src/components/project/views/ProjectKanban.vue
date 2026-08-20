@@ -154,7 +154,7 @@
 									:delay="isTouchDevice ? 300 : 1000"
 									:model-value="bucket.tasks"
 									:group="{name: 'tasks', put: shouldAcceptDrop(bucket) && !dragBucket}"
-									:disabled="!canWrite"
+									:disabled="!canDragTasks"
 									:data-bucket-index="bucketIndex"
 									tag="ul"
 									:item-key="(task: ITask) => `bucket${bucket.id}-task${task.id}`"
@@ -324,7 +324,7 @@ import {calculateItemPosition} from '@/helpers/calculateItemPosition'
 
 import {isSavedFilter, useSavedFilter} from '@/services/savedFilter'
 import {useTaskDragToProject} from '@/composables/useTaskDragToProject'
-import {success} from '@/message'
+import {success, error} from '@/message'
 import {useProjectStore} from '@/stores/projects'
 import type {TaskFilterParams} from '@/services/taskCollection'
 import type {IProjectView} from '@/modelTypes/IProjectView'
@@ -431,7 +431,7 @@ const getTaskDraggableTaskComponentData = computed(() => (bucket: IBucket) => {
 		name: !drag.value ? 'move-card' : null,
 		class: [
 			'tasks',
-			{'dragging-disabled': !canWrite.value},
+			{'dragging-disabled': !canDragTasks.value},
 		],
 	}
 })
@@ -447,7 +447,17 @@ const bucketDraggableComponentData = computed(() => ({
 const project = computed(() => projectId.value ? projectStore.projects[projectId.value] : null)
 const view = computed(() => project.value?.views.find(v => v.id === props.viewId) as IProjectView || null)
 const canWrite = computed(() => baseStore.currentProject?.maxPermission > Permissions.READ && view.value.bucketConfigurationMode === 'manual')
-const canCreateTasks = computed(() => canWrite.value && projectId.value > 0)
+// Seamless grouping: either the view is explicitly in project mode, OR the
+// "Show subproject tasks" toggle is on for a project that has children. In the
+// second case the board groups by project on the fly — no per-view config.
+const hasChildProjects = computed(() => projectStore.getChildProjects(projectId.value).length > 0)
+const groupByProject = computed(() => authStore.settings.frontendSettings.showSubprojectTasks && hasChildProjects.value)
+const isProjectMode = computed(() => view.value?.bucketConfigurationMode === 'project' || groupByProject.value)
+const hasWritePermission = computed(() => (baseStore.currentProject?.maxPermission ?? 0) > Permissions.READ)
+// Dragging is enabled for manual-write boards and for project-mode boards,
+// where dragging a card across columns moves the task to that project.
+const canDragTasks = computed(() => canWrite.value || (isProjectMode.value && hasWritePermission.value))
+const canCreateTasks = computed(() => (canWrite.value || isProjectMode.value) && projectId.value > 0)
 
 const isTouchDevice = ref(false)
 if (typeof window !== 'undefined') {
@@ -493,13 +503,14 @@ watch(
 		params: params.value,
 		projectId: projectId.value,
 		viewId: props.viewId,
+		groupByProject: groupByProject.value,
 	}),
-	({params, projectId, viewId}) => {
+	({params, projectId, viewId, groupByProject}) => {
 		if (projectId === undefined || Number(projectId) === 0) {
 			return
 		}
 		collapsedBuckets.value = getCollapsedBucketState(projectId)
-		kanbanStore.loadBucketsForProject(projectId, viewId, params)
+		kanbanStore.loadBucketsForProject(projectId, viewId, {...params, group_by_project: groupByProject})
 	},
 	{
 		immediate: true,
@@ -581,6 +592,26 @@ async function updateTaskPosition(e) {
 		: e.newIndex
 
 	const task = newBucket.tasks[newTaskIndex]
+
+	// Project mode: the bucket id IS the target project id. vuedraggable has
+	// already moved the card between columns in the store; we only persist the
+	// project change (and reload to revert on failure).
+	if (isProjectMode.value) {
+		if (!newBucket || !task || newBucket.id === task.projectId) {
+			return
+		}
+		taskUpdating.value[task.id] = true
+		try {
+			await taskStore.update({...task, projectId: newBucket.id})
+		} catch (e) {
+			error(e)
+			kanbanStore.loadBucketsForProject(projectIdWithFallback.value, props.viewId, {...params.value, group_by_project: groupByProject.value})
+		} finally {
+			taskUpdating.value[task.id] = false
+		}
+		return
+	}
+
 	const oldBucket = buckets.value.find(b => b.id === sourceBucket.value)
 	const taskBefore = newBucket.tasks[newTaskIndex - 1] ?? null
 	const taskAfter = newBucket.tasks[newTaskIndex + 1] ?? null
@@ -671,10 +702,12 @@ async function addTaskToBucket(bucketId: IBucket['id']) {
 	}
 	newTaskError.value[bucketId] = false
 
+	// In project mode the bucket id is a project id, so new tasks are created
+	// in that project rather than assigned to a bucket.
 	const task = await taskStore.createNewTask({
 		title: newTaskText.value,
-		bucketId,
-		projectId: projectIdWithFallback.value,
+		bucketId: isProjectMode.value ? undefined : bucketId,
+		projectId: isProjectMode.value ? bucketId : projectIdWithFallback.value,
 	})
 	newTaskText.value = ''
 	kanbanStore.addTaskToBucket(task)
@@ -774,7 +807,7 @@ function handleRecurringTaskCompletion() {
 		
 	if (filterContainsDateFields) {
 		// Reload the kanban board to refresh tasks that now match/don't match the filter
-		kanbanStore.loadBucketsForProject(projectId.value, props.viewId, params.value)
+		kanbanStore.loadBucketsForProject(projectId.value, props.viewId, {...params.value, group_by_project: groupByProject.value})
 	}
 }
 

@@ -2466,3 +2466,60 @@ func TestTaskCollection_DateFilterTimezoneBoundary(t *testing.T) {
 	}
 	assert.Truef(t, found, "task due %s (one hour before local midnight) should match", task.DueDate)
 }
+
+// Fixture pair: project 34 is the parent of project 17, both owned by user 6.
+// Task 23 lives in 34, task 26 lives in 17 — so a descendants-inclusive read of
+// 34 is the only way task 26 should ever show up.
+func TestTaskCollection_IncludeDescendantsPullsInSubprojectTasks(t *testing.T) {
+	db.LoadAndAssertFixtures(t)
+	u := &user.User{ID: 6}
+
+	hasTask26 := func(tasks []*Task) bool {
+		for _, tk := range tasks {
+			if tk.ID == 26 {
+				return true
+			}
+		}
+		return false
+	}
+
+	t.Run("without flag: only the parent's own tasks", func(t *testing.T) {
+		s := db.NewSession()
+		defer s.Close()
+		c := &TaskCollection{ProjectID: 34}
+		res, _, _, err := c.ReadAll(s, u, "", 0, 50)
+		require.NoError(t, err)
+		tasks := res.([]*Task)
+		assert.False(t, hasTask26(tasks), "subproject task #26 must not appear without include_descendants")
+	})
+
+	t.Run("with flag: parent + descendant tasks", func(t *testing.T) {
+		s := db.NewSession()
+		defer s.Close()
+		c := &TaskCollection{ProjectID: 34, IncludeDescendants: true}
+		res, _, _, err := c.ReadAll(s, u, "", 0, 50)
+		require.NoError(t, err)
+		tasks := res.([]*Task)
+		assert.True(t, hasTask26(tasks), "subproject task #26 must appear with include_descendants")
+	})
+}
+
+func TestGetDescendantProjectIDs(t *testing.T) {
+	db.LoadAndAssertFixtures(t)
+
+	t.Run("parent with a child", func(t *testing.T) {
+		s := db.NewSession()
+		defer s.Close()
+		ids, err := getDescendantProjectIDs(s, 34)
+		require.NoError(t, err)
+		assert.Equal(t, []int64{17}, ids)
+	})
+
+	t.Run("leaf project has no descendants", func(t *testing.T) {
+		s := db.NewSession()
+		defer s.Close()
+		ids, err := getDescendantProjectIDs(s, 17)
+		require.NoError(t, err)
+		assert.Empty(t, ids)
+	})
+}

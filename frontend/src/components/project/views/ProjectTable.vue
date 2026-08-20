@@ -81,6 +81,10 @@
 					:project-id="projectId"
 					@update:modelValue="taskList.loadTasks()"
 				/>
+				<SubprojectsToggle
+					v-if="!isSavedFilter({id: projectId})"
+					:project-id="projectId"
+				/>
 			</div>
 		</template>
 
@@ -358,6 +362,7 @@ import CommentCount from '@/components/tasks/partials/CommentCount.vue'
 import FancyCheckbox from '@/components/input/FancyCheckbox.vue'
 import Sort from '@/components/tasks/partials/Sort.vue'
 import FilterPopup from '@/components/project/partials/FilterPopup.vue'
+import SubprojectsToggle from '@/components/project/partials/SubprojectsToggle.vue'
 import Pagination from '@/components/misc/Pagination.vue'
 import Popup from '@/components/misc/Popup.vue'
 
