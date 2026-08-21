@@ -121,6 +121,41 @@
           "text2": "This is irreversible. Any API tokens belonging to this bot will be revoked."
         }
       },
+      "agents": {
+        "title": "Agents",
+        "description": "Agents are AI workers with their own access: a bot user, an API token and memberships in the projects you pick. Point an MCP-capable client at the MCP endpoint and let agents pick up tasks — their activity shows up live on your boards.",
+        "create": "Create agent",
+        "nameLabel": "Name",
+        "namePlaceholder": "Research Agent",
+        "nameRequired": "Please provide a name.",
+        "presetLabel": "What can the agent do?",
+        "projectsLabel": "Which projects can it work on?",
+        "projectsPlaceholder": "Select projects…",
+        "permissionLabel": "Permission in those projects",
+        "noAgents": "No agents yet. Create one to give an AI worker access to specific projects.",
+        "rotateToken": "Rotate token",
+        "neverUsed": "Never used",
+        "lastUsed": "Last active {date}",
+        "presets": {
+          "readOnly": "Read only",
+          "readOnlyDescription": "Can see tasks and projects, change nothing.",
+          "commentOnly": "Read + comment",
+          "commentOnlyDescription": "Can read everything and report progress via comments.",
+          "readWrite": "Read & write",
+          "readWriteDescription": "Can work on tasks: claim, update and complete them."
+        },
+        "created": {
+          "title": "Agent created",
+          "tokenOnce": "Copy the token now, it will not be shown again:",
+          "mcpHint": "Use it as a Bearer token on the MCP endpoint:",
+          "mcpEndpoint": "/api/v2/mcp"
+        },
+        "delete": {
+          "header": "Delete this agent",
+          "text1": "Are you sure you want to delete the agent \"{username}\"?",
+          "text2": "This is irreversible. Its token is revoked and its project memberships are removed."
+        }
+      },
       "title": "Settings",
       "newPasswordTitle": "Update Your Password",
       "newPassword": "New password",

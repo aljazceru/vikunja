@@ -12,4 +12,5 @@ export interface IApiToken extends IAbstract {
 	expiresAt: Date
 	created: Date
 	ownerId?: number
+	lastUsedAt?: Date
 }

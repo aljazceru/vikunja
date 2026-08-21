@@ -89,6 +89,10 @@ const navigationItems = computed(() => {
 			routeName: 'user.settings.bots',
 		},
 		{
+			title: t('user.settings.agents.title'),
+			routeName: 'user.settings.agents',
+		},
+		{
 			title: t('user.deletion.title'),
 			routeName: 'user.settings.deletion',
 			condition: userDeletionEnabled.value,
