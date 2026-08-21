@@ -156,6 +156,11 @@ func (b *Bucket) ReadAll(s *xorm.Session, auth web.Auth, _ string, _ int, _ int)
 	return buckets, len(buckets), int64(len(buckets)), nil
 }
 
+// The mode dispatch (manual / filter-config / per-project columns) plus
+// per-bucket filter handling is inherently branch-heavy; splitting it would
+// scatter shared state across helpers.
+//
+//nolint:gocyclo
 func GetTasksInBucketsForView(s *xorm.Session, view *ProjectView, projects []*Project, opts *taskSearchOptions, auth web.Auth) (bucketsWithTasks []*Bucket, err error) {
 	// Explicit per-view mode OR a per-request client toggle (the "Show subproject
 	// tasks" toggle on a manual board). Both produce the same per-project columns.
