@@ -12,6 +12,10 @@
 		<!-- Columns derive from percent_done, not positions, so within-column
 			order is not persisted — keep same-column sorting off rather than
 			silently dropping drags. -->
+		<!-- Columns derive from percent_done, not positions, so within-column
+			order is not persisted — keep same-column sorting off rather than
+			silently dropping drags. Dragging is a task write, so it stays
+			off entirely for read-only projects. -->
 		<draggable
 			:item-key="(task: ITask) => `task-${task.id}`"
 			:list="localTasks"
@@ -19,6 +23,7 @@
 			:animation="150"
 			item-tag="div"
 			:sort="false"
+			:disabled="!canWrite"
 			:component-data="{
 				class: 'swimlane-column__bucket',
 			}"
@@ -29,6 +34,7 @@
 				<SwimlaneTaskCard
 					:task="(task as ITask)"
 					:selected="(task as ITask).id === selectedTaskId"
+					:can-write="canWrite"
 					@open="t => $emit('open', t)"
 					@updated="t => $emit('updated', t)"
 				/>
@@ -53,13 +59,17 @@ import {columnOfTask, type SwimlaneColumnKey} from '@/composables/useSwimlaneTas
 
 import type {ITask} from '@/modelTypes/ITask'
 
-const props = defineProps<{
+const props = withDefaults(defineProps<{
 	projectId: number
 	column: SwimlaneColumnKey
 	translationKey: string
 	tasks: ITask[]
 	selectedTaskId?: ITask['id'] | null
-}>()
+	canWrite?: boolean
+}>(), {
+	canWrite: false,
+	selectedTaskId: null,
+})
 
 const emit = defineEmits<{
 	'open': [task: ITask]
@@ -87,7 +97,7 @@ const ENTER_PERCENT_DONE: Record<SwimlaneColumnKey, number> = {
 
 async function onChange(event: {added?: {element: ITask}, removed?: {element: ITask}}) {
 	const task = event.added?.element
-	if (!task) return
+	if (!task || !props.canWrite) return
 
 	const newColumn = props.column
 	if (columnOfTask(task) === newColumn) return

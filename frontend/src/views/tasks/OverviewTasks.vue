@@ -39,14 +39,22 @@
 				v-if="isLoading && lanes.length === 0"
 				class="task-overview__loading"
 			/>
-			<SwimlaneBoard
-				v-else-if="lanes.length > 0"
-				:lanes="lanes"
-				:tasks="tasks"
-				:total="total"
-				@select="selectTask"
-				@updated="onTaskUpdated"
-			/>
+			<template v-else-if="lanes.length > 0">
+				<Message
+					v-if="error !== null"
+					class="task-overview__refresh-error"
+					variant="danger"
+				>
+					{{ $t('task.overview.refreshError') }}
+				</Message>
+				<SwimlaneBoard
+					:lanes="lanes"
+					:tasks="tasks"
+					:total="total"
+					@select="selectTask"
+					@updated="onTaskUpdated"
+				/>
+			</template>
 			<Message
 				v-else-if="error !== null"
 				class="task-overview__empty"
@@ -337,6 +345,10 @@ watch(tasks, fresh => {
 		background: hsla(var(--danger-h), var(--danger-s), var(--danger-l), .12);
 		font-weight: 600;
 	}
+}
+
+.task-overview__refresh-error {
+	margin-block-end: .25rem;
 }
 
 .task-overview__loading,
