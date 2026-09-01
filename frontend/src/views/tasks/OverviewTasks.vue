@@ -1,7 +1,7 @@
 <template>
 	<div
 		class="task-overview"
-		:style="{'--pane-width': paneWidth}"
+		:style="{'--pane-width': selectedTask === null ? '0px' : paneWidth}"
 	>
 		<div class="task-overview__main">
 			<div class="task-overview__header">
@@ -79,6 +79,7 @@
 
 		<div class="task-overview__pane-wrap">
 			<div
+				v-show="selectedTask !== null"
 				class="task-overview__resize-handle"
 				:class="{'is-resizing': isResizingPane}"
 				role="separator"
