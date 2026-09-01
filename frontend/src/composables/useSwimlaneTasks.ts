@@ -4,6 +4,8 @@ import TaskService from '@/services/task'
 import TaskModel from '@/models/task'
 import {useAuthStore} from '@/stores/auth'
 import {useProjectStore} from '@/stores/projects'
+import {useGlobalNow} from '@/composables/useGlobalNow'
+import {PERMISSIONS, type Permission} from '@/constants/permissions'
 
 import type {ITask} from '@/modelTypes/ITask'
 import type {IProject} from '@/modelTypes/IProject'
@@ -16,6 +18,8 @@ export interface SwimlaneProject {
 	id: IProject['id']
 	title: string
 	hexColor: string
+	maxPermission: Permission | null
+	isArchived: boolean
 }
 
 export interface SwimlaneLane {
@@ -53,13 +57,29 @@ export function isTaskOverdue(task: ITask, now: Date): boolean {
 		task.dueDate.getTime() <= now.getTime()
 }
 
+/**
+ * Tasks are writable when the project is: task collections don't carry
+ * maxPermission, so project permissions (loaded with expand=permissions)
+ * decide. Unknown permissions read as read-only.
+ */
+export function canWriteTasksIn(project: Pick<SwimlaneProject, 'maxPermission' | 'isArchived'>): boolean {
+	return !project.isArchived &&
+		project.maxPermission !== null &&
+		project.maxPermission > PERMISSIONS.READ
+}
+
 export function useSwimlaneTasks() {
 	const authStore = useAuthStore()
 	const projectStore = useProjectStore()
+	// Shared ticking clock: the cards already derive their overdue look from
+	// it, and using it here keeps the lane/header summaries from going stale
+	// when a due time passes while the page stays open.
+	const {now} = useGlobalNow()
 
 	const isLoading = ref(false)
 	const tasks = ref<ITask[]>([])
 	const total = ref(0)
+	const error = ref<Error | null>(null)
 
 	async function load() {
 		const taskService = new TaskService()
@@ -92,6 +112,11 @@ export function useSwimlaneTasks() {
 			total.value = taskService.resultCount === 0
 				? 0
 				: (taskService.totalPages - 1) * PAGE_SIZE + taskService.resultCount
+			error.value = null
+		} catch (e) {
+			// Failures must not read as an empty board: keep whatever was
+			// loaded before and surface the error to the view.
+			error.value = e instanceof Error ? e : new Error(String(e))
 		} finally {
 			isLoading.value = false
 		}
@@ -105,21 +130,28 @@ export function useSwimlaneTasks() {
 			byProject.set(task.projectId, bucket)
 		}
 
-		const now = new Date()
 		// Lanes follow the sidebar's project order; projects with tasks but not
 		// in the store (shouldn't happen — they'd be unreadable) go last.
 		const ordered: SwimlaneProject[] = [
-			...projectStore.projectsArray.filter(p => byProject.has(p.id)),
+			...projectStore.projectsArray.filter(p => byProject.has(p.id)).map(p => ({
+				id: p.id,
+				title: p.title,
+				hexColor: p.hexColor,
+				maxPermission: p.maxPermission ?? null,
+				isArchived: p.isArchived,
+			})),
 			...[...byProject.keys()]
 				.filter(id => !projectStore.projects[id])
-				.map(id => ({id, title: `#${id}`, hexColor: '', position: Number.MAX_SAFE_INTEGER})),
+				.map(id => ({id, title: `#${id}`, hexColor: '', maxPermission: null, isArchived: false, position: Number.MAX_SAFE_INTEGER})),
 		]
 
 		return ordered.map(project => {
 			const laneTasks = byProject.get(project.id) ?? []
-			const overdueCount = laneTasks.filter(t => isTaskOverdue(t, now)).length
+			const overdueCount = laneTasks.filter(t => isTaskOverdue(t, now.value)).length
+			// "Next" is the next future due date; overdue items already have
+			// their own badge and would otherwise always win this sort.
 			const upcoming = laneTasks
-				.filter(t => t.dueDate !== null && t.dueDate.getTime() > 0)
+				.filter(t => t.dueDate !== null && t.dueDate.getTime() > now.value.getTime())
 				.map(t => t.dueDate as Date)
 				.sort((a, b) => a.getTime() - b.getTime())
 			return {
@@ -132,7 +164,7 @@ export function useSwimlaneTasks() {
 	})
 
 	const overdueCount = computed(() =>
-		tasks.value.reduce((sum, t) => sum + (isTaskOverdue(t, new Date()) ? 1 : 0), 0))
+		tasks.value.reduce((sum, t) => sum + (isTaskOverdue(t, now.value) ? 1 : 0), 0))
 
 	function applyUpdate(updated: ITask) {
 		const i = tasks.value.findIndex(t => t.id === updated.id)
@@ -161,5 +193,6 @@ export function useSwimlaneTasks() {
 		lanes,
 		load,
 		applyUpdate,
+		error,
 	}
 }

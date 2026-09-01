@@ -6,6 +6,7 @@
 		:loading="projectUserService.loading"
 		:placeholder="$t('task.assignee.placeholder')"
 		:multiple="true"
+		:disabled="disabled"
 		:search-results="foundUsers"
 		:show-empty="true"
 		label="name"
@@ -115,6 +116,9 @@ async function removeAssignee(user: IUser) {
 	if (idx !== -1) {
 		assignees.value.splice(idx, 1)
 	}
+	// Keep v-model holders in sync on removal, like addAssignee does —
+	// otherwise parents keep showing the removed assignee.
+	emit('update:modelValue', assignees.value)
 	success({message: t('task.assignee.unassignSuccess')})
 }
 

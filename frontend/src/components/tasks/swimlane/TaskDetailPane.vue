@@ -45,7 +45,7 @@
 				<div class="task-detail-pane__prop">
 					<span class="task-detail-pane__prop-label">{{ $t('task.attributes.done') }}</span>
 					<FancyCheckbox
-						:disabled="updating"
+						:disabled="updating || !canWrite"
 						:model-value="task.done"
 						@update:modelValue="done => save({done})"
 					/>
@@ -53,7 +53,7 @@
 				<div class="task-detail-pane__prop">
 					<span class="task-detail-pane__prop-label">{{ $t('task.attributes.percentDone') }}</span>
 					<PercentDoneSelect
-						:disabled="updating"
+						:disabled="updating || !canWrite"
 						:model-value="task.percentDone"
 						@update:modelValue="percentDone => save({percentDone})"
 					/>
@@ -67,11 +67,11 @@
 						<Datepicker
 							v-model="dueDate"
 							:choose-date-label="$t('task.detail.chooseDueDate')"
-							:disabled="updating"
+							:disabled="updating || !canWrite"
 							@closeOnChange="saveDueDate"
 						/>
 						<BaseButton
-							v-if="task.dueDate !== null && task.dueDate.getTime() > 0"
+							v-if="canWrite && task.dueDate !== null && task.dueDate.getTime() > 0"
 							class="remove"
 							:aria-label="$t('task.detail.removeDueDate')"
 							@click="() => save({dueDate: null})"
@@ -85,7 +85,7 @@
 				<div class="task-detail-pane__prop">
 					<span class="task-detail-pane__prop-label">{{ $t('task.attributes.priority') }}</span>
 					<PrioritySelect
-						:disabled="updating"
+						:disabled="updating || !canWrite"
 						:model-value="task.priority"
 						@update:modelValue="priority => save({priority: priority as Priority})"
 					/>
@@ -96,7 +96,7 @@
 						:model-value="task.assignees"
 						:task-id="task.id"
 						:project-id="task.projectId"
-						:disabled="updating"
+						:disabled="updating || !canWrite"
 						:list-id="task.projectId"
 						@update:modelValue="assignees => save({assignees})"
 					/>
@@ -106,15 +106,15 @@
 					<EditLabels
 						:model-value="task.labels"
 						:task-id="task.id"
-						:disabled="updating"
-						@update:modelValue="labels => save({labels})"
+						:disabled="updating || !canWrite"
+						@update:modelValue="labels => adoptLabels(labels)"
 					/>
 				</div>
 				<div class="task-detail-pane__prop task-detail-pane__prop--block">
 					<span class="task-detail-pane__prop-label">{{ $t('task.attributes.reminders') }}</span>
 					<Reminders
 						v-model="reminders"
-						:disabled="updating"
+						:disabled="updating || !canWrite"
 						:default-relative-to="remindersDefaultRelativeTo"
 						@update:modelValue="reminders => save({reminders})"
 					/>
@@ -127,7 +127,7 @@
 			<Description
 				:model-value="task"
 				:attachment-upload="attachmentUpload"
-				:can-write="!updating"
+				:can-write="canWrite && !updating"
 				@update:modelValue="t => $emit('updated', t)"
 			/>
 
@@ -163,9 +163,10 @@ import {getHexColor} from '@/models/task'
 import {generateAttachmentUrl, uploadFile} from '@/helpers/attachments'
 import {useTaskStore} from '@/stores/tasks'
 import {useProjectStore} from '@/stores/projects'
-import {isTaskOverdue} from '@/composables/useSwimlaneTasks'
+import {isTaskOverdue, canWriteTasksIn} from '@/composables/useSwimlaneTasks'
 
 import type {ITask} from '@/modelTypes/ITask'
+import type {ILabel} from '@/modelTypes/ILabel'
 import type {ITaskReminder} from '@/modelTypes/ITaskReminder'
 import type {Priority} from '@/constants/priorities'
 import type {IReminderPeriodRelativeTo} from '@/types/IReminderPeriodRelativeTo'
@@ -200,16 +201,34 @@ watch(() => props.task, task => {
 
 const isOverdue = computed(() => props.task ? isTaskOverdue(props.task, new Date()) : false)
 
+// Writes follow the project's permission: task collections don't carry
+// maxPermission, and the pane has no other source for it.
+const canWrite = computed(() => {
+	if (!props.task) return false
+	const project = projectStore.projects[props.task.projectId]
+	return project !== undefined && canWriteTasksIn(project)
+})
+
 const remindersDefaultRelativeTo = computed<IReminderPeriodRelativeTo>(() => 'due_date')
 
 async function save(changes: Partial<ITask>) {
-	if (!props.task) return
+	if (!props.task || !canWrite.value) return
 	updating.value = true
 	try {
-		const updated = await taskStore.update({
+		const next = {
 			...props.task,
 			...changes,
-		})
+		}
+		// Same invariant as the main task detail view: with a start date and
+		// no end date, the due date doubles as the end date.
+		if (
+			next.endDate === null &&
+			next.startDate !== null &&
+			next.dueDate !== null
+		) {
+			next.endDate = next.dueDate
+		}
+		const updated = await taskStore.update(next)
 		emit('updated', updated)
 	} finally {
 		updating.value = false
@@ -219,6 +238,14 @@ async function save(changes: Partial<ITask>) {
 function saveDueDate() {
 	if (!dueDate.value) return
 	save({dueDate: dueDate.value})
+}
+
+// Label changes are already persisted by EditLabels through the label-task
+// endpoints. The generic task update ignores labels and would answer with
+// the stale set, so adopt them locally instead of re-saving.
+function adoptLabels(labels: ILabel[]) {
+	if (!props.task) return
+	emit('updated', {...props.task, labels})
 }
 
 async function attachmentUpload(file: File, onSuccess?: (url: string) => void): Promise<string> {
@@ -243,6 +270,13 @@ function bubbleColor(hexColor: string): string {
 	overflow-y: auto;
 	max-block-size: 100vh;
 
+	// Collapses the desktop layout to nothing while no task is selected so
+	// the board keeps the full width; on mobile the sheet slides away
+	// instead, so it stays rendered there.
+	&.is-empty {
+		display: none;
+	}
+
 	.task-detail-pane__handle {
 		display: none;
 	}
@@ -263,6 +297,10 @@ function bubbleColor(hexColor: string): string {
 
 		&.is-open {
 			transform: none;
+		}
+
+		&.is-empty {
+			display: flex;
 		}
 
 		.task-detail-pane__handle {

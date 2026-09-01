@@ -1,7 +1,7 @@
 <template>
 	<div
 		class="task-overview"
-		:style="{'--pane-width': paneWidth}"
+		:style="{'--pane-width': selectedTask === null ? '0px' : paneWidth}"
 	>
 		<div class="task-overview__main">
 			<div class="task-overview__header">
@@ -39,14 +39,30 @@
 				v-if="isLoading && lanes.length === 0"
 				class="task-overview__loading"
 			/>
-			<SwimlaneBoard
-				v-else-if="lanes.length > 0"
-				:lanes="lanes"
-				:tasks="tasks"
-				:total="total"
-				@select="selectTask"
-				@updated="onTaskUpdated"
-			/>
+			<template v-else-if="lanes.length > 0">
+				<Message
+					v-if="error !== null"
+					class="task-overview__refresh-error"
+					variant="danger"
+				>
+					{{ $t('task.overview.refreshError') }}
+				</Message>
+				<SwimlaneBoard
+					:lanes="lanes"
+					:tasks="tasks"
+					:total="total"
+					:selected-task-id="selectedTask !== null ? selectedTask.id : null"
+					@select="selectTask"
+					@updated="onTaskUpdated"
+				/>
+			</template>
+			<Message
+				v-else-if="error !== null"
+				class="task-overview__empty"
+				variant="danger"
+			>
+				{{ $t('task.overview.loadError') }}
+			</Message>
 			<Message
 				v-else
 				class="task-overview__empty"
@@ -64,6 +80,7 @@
 
 		<div class="task-overview__pane-wrap">
 			<div
+				v-show="selectedTask !== null"
 				class="task-overview__resize-handle"
 				:class="{'is-resizing': isResizingPane}"
 				role="separator"
@@ -87,7 +104,7 @@
 </template>
 
 <script lang="ts" setup>
-import {onMounted, onUnmounted, ref} from 'vue'
+import {onMounted, onUnmounted, ref, watch} from 'vue'
 
 import SwimlaneBoard from '@/components/tasks/swimlane/SwimlaneBoard.vue'
 import TaskDetailPane from '@/components/tasks/swimlane/TaskDetailPane.vue'
@@ -96,6 +113,7 @@ import Message from '@/components/misc/Message.vue'
 import XButton from '@/components/input/Button.vue'
 
 import {useSwimlaneTasks} from '@/composables/useSwimlaneTasks'
+import {useAuthStore} from '@/stores/auth'
 
 import type {ITask} from '@/modelTypes/ITask'
 
@@ -107,11 +125,19 @@ const {
 	lanes,
 	load,
 	applyUpdate,
+	error,
 } = useSwimlaneTasks()
 
 const selectedTask = ref<ITask | null>(null)
 
-onMounted(() => load())
+const authStore = useAuthStore()
+
+onMounted(() => {
+	// Auth-only route: skip the initial fetch until the auth bootstrap is
+	// done, the same guard ShowTasks uses — otherwise signed-out visitors
+	// see the error state flash before the login redirect happens.
+	if (authStore.authenticated) load()
+})
 
 // --- Resizable detail pane -------------------------------------------------
 // The pane is the rightmost column, so its width follows the pointer distance
@@ -127,7 +153,9 @@ const isResizingPane = ref(false)
 try {
 	const stored = Number(localStorage.getItem(PANE_STORAGE_KEY))
 	if (Number.isFinite(stored) && stored >= PANE_MIN_WIDTH) {
-		paneWidth.value = `${stored}px`
+		// Clamp against the current viewport: a width persisted on a large
+		// screen could otherwise swallow most of a narrower one.
+		paneWidth.value = `${clampPaneWidth(stored)}px`
 	}
 } catch {
 	// ignore malformed values
@@ -137,8 +165,12 @@ function paneMax(): number {
 	return Math.max(PANE_MIN_WIDTH + 200, Math.floor(window.innerWidth * PANE_MAX_WIDTH_FRAC))
 }
 
+function clampPaneWidth(px: number): number {
+	return Math.max(PANE_MIN_WIDTH, Math.min(paneMax(), px))
+}
+
 function setPaneWidth(px: number) {
-	const clamped = Math.max(PANE_MIN_WIDTH, Math.min(paneMax(), px))
+	const clamped = clampPaneWidth(px)
 	paneWidth.value = `${clamped}px`
 	localStorage.setItem(PANE_STORAGE_KEY, String(clamped))
 }
@@ -196,6 +228,14 @@ function onTaskUpdated(task: ITask) {
 		selectedTask.value = task.done ? null : task
 	}
 }
+
+// The pane shows a detached object; a reload replaces the tasks array with
+// fresh server state, so re-point the selection at the new object or close
+// the pane when the task no longer matches the open-task filter.
+watch(tasks, fresh => {
+	if (selectedTask.value === null) return
+	selectedTask.value = fresh.find(t => t.id === selectedTask.value?.id) ?? null
+})
 </script>
 
 <style lang="scss" scoped>
@@ -321,6 +361,10 @@ function onTaskUpdated(task: ITask) {
 		background: hsla(var(--danger-h), var(--danger-s), var(--danger-l), .12);
 		font-weight: 600;
 	}
+}
+
+.task-overview__refresh-error {
+	margin-block-end: .25rem;
 }
 
 .task-overview__loading,

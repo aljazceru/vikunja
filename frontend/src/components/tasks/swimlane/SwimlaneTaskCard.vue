@@ -11,6 +11,7 @@
 	>
 		<div class="swimlane-card__top">
 			<BaseButton
+				v-if="canWrite"
 				class="swimlane-card__check"
 				:class="{'is-checked': task.done}"
 				data-cy="task-done-checkbox"
@@ -101,8 +102,10 @@ import type {ITask} from '@/modelTypes/ITask'
 const props = withDefaults(defineProps<{
 	task: ITask
 	selected?: boolean
+	canWrite?: boolean
 }>(), {
 	selected: false,
+	canWrite: false,
 })
 
 const emit = defineEmits<{
@@ -126,6 +129,7 @@ const isToday = computed(() => {
 })
 
 async function toggleDone(done: boolean) {
+	if (!props.canWrite) return
 	loading.value = true
 	try {
 		const updated = await taskStore.update({
