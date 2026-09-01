@@ -144,8 +144,10 @@ export function useSwimlaneTasks() {
 		return ordered.map(project => {
 			const laneTasks = byProject.get(project.id) ?? []
 			const overdueCount = laneTasks.filter(t => isTaskOverdue(t, now)).length
+			// "Next" is the next future due date; overdue items already have
+			// their own badge and would otherwise always win this sort.
 			const upcoming = laneTasks
-				.filter(t => t.dueDate !== null && t.dueDate.getTime() > 0)
+				.filter(t => t.dueDate !== null && t.dueDate.getTime() > now.getTime())
 				.map(t => t.dueDate as Date)
 				.sort((a, b) => a.getTime() - b.getTime())
 			return {

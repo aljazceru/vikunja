@@ -32,7 +32,7 @@
 				</li>
 				<li>
 					<RouterLink
-						v-shortcut="'KeyG KeyA'"
+						v-shortcut="'KeyG KeyT'"
 						:to="{ name: 'tasks.overview'}"
 					>
 						<span class="menu-item-icon icon">
