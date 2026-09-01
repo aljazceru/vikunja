@@ -198,4 +198,27 @@ describe('load', () => {
 		expect(total.value).toBe(0)
 		expect(pagination.requestedPages).toEqual([1])
 	})
+
+	it('keeps a failed load in the error state instead of an empty board', async () => {
+		// No scripted pages: every request rejects.
+		pagination.pages = {}
+
+		const {load, tasks, total, error} = useSwimlaneTasks()
+		await load()
+
+		expect(error.value).toBeInstanceOf(Error)
+		expect(tasks.value).toHaveLength(0)
+		expect(total.value).toBe(0)
+	})
+
+	it('clears a previous error after a successful reload', async () => {
+		pagination.pages = {}
+		const {load, error} = useSwimlaneTasks()
+		await load()
+		expect(error.value).not.toBeNull()
+
+		scriptPages(10, 100)
+		await load()
+		expect(error.value).toBeNull()
+	})
 })

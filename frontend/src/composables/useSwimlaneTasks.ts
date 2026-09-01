@@ -60,6 +60,7 @@ export function useSwimlaneTasks() {
 	const isLoading = ref(false)
 	const tasks = ref<ITask[]>([])
 	const total = ref(0)
+	const error = ref<Error | null>(null)
 
 	async function load() {
 		const taskService = new TaskService()
@@ -92,6 +93,11 @@ export function useSwimlaneTasks() {
 			total.value = taskService.resultCount === 0
 				? 0
 				: (taskService.totalPages - 1) * PAGE_SIZE + taskService.resultCount
+			error.value = null
+		} catch (e) {
+			// Failures must not read as an empty board: keep whatever was
+			// loaded before and surface the error to the view.
+			error.value = e instanceof Error ? e : new Error(String(e))
 		} finally {
 			isLoading.value = false
 		}
@@ -161,5 +167,6 @@ export function useSwimlaneTasks() {
 		lanes,
 		load,
 		applyUpdate,
+		error,
 	}
 }

@@ -9,12 +9,16 @@
 				{{ tasks.length }}
 			</span>
 		</div>
+		<!-- Columns derive from percent_done, not positions, so within-column
+			order is not persisted — keep same-column sorting off rather than
+			silently dropping drags. -->
 		<draggable
 			:item-key="(task: ITask) => `task-${task.id}`"
 			:list="localTasks"
 			:group="`lane-${projectId}`"
 			:animation="150"
 			item-tag="div"
+			:sort="false"
 			:component-data="{
 				class: 'swimlane-column__bucket',
 			}"
