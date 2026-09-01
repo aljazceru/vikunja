@@ -4,6 +4,7 @@ import TaskService from '@/services/task'
 import TaskModel from '@/models/task'
 import {useAuthStore} from '@/stores/auth'
 import {useProjectStore} from '@/stores/projects'
+import {PERMISSIONS, type Permission} from '@/constants/permissions'
 
 import type {ITask} from '@/modelTypes/ITask'
 import type {IProject} from '@/modelTypes/IProject'
@@ -16,6 +17,8 @@ export interface SwimlaneProject {
 	id: IProject['id']
 	title: string
 	hexColor: string
+	maxPermission: Permission | null
+	isArchived: boolean
 }
 
 export interface SwimlaneLane {
@@ -51,6 +54,17 @@ export function isTaskOverdue(task: ITask, now: Date): boolean {
 		task.dueDate !== null &&
 		task.dueDate.getTime() > 0 &&
 		task.dueDate.getTime() <= now.getTime()
+}
+
+/**
+ * Tasks are writable when the project is: task collections don't carry
+ * maxPermission, so project permissions (loaded with expand=permissions)
+ * decide. Unknown permissions read as read-only.
+ */
+export function canWriteTasksIn(project: Pick<SwimlaneProject, 'maxPermission' | 'isArchived'>): boolean {
+	return !project.isArchived &&
+		project.maxPermission !== null &&
+		project.maxPermission > PERMISSIONS.READ
 }
 
 export function useSwimlaneTasks() {
@@ -115,10 +129,16 @@ export function useSwimlaneTasks() {
 		// Lanes follow the sidebar's project order; projects with tasks but not
 		// in the store (shouldn't happen — they'd be unreadable) go last.
 		const ordered: SwimlaneProject[] = [
-			...projectStore.projectsArray.filter(p => byProject.has(p.id)),
+			...projectStore.projectsArray.filter(p => byProject.has(p.id)).map(p => ({
+				id: p.id,
+				title: p.title,
+				hexColor: p.hexColor,
+				maxPermission: p.maxPermission ?? null,
+				isArchived: p.isArchived,
+			})),
 			...[...byProject.keys()]
 				.filter(id => !projectStore.projects[id])
-				.map(id => ({id, title: `#${id}`, hexColor: '', position: Number.MAX_SAFE_INTEGER})),
+				.map(id => ({id, title: `#${id}`, hexColor: '', maxPermission: null, isArchived: false, position: Number.MAX_SAFE_INTEGER})),
 		]
 
 		return ordered.map(project => {

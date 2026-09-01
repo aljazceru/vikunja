@@ -50,6 +50,7 @@
 				:translation-key="column.translationKey"
 				:tasks="lane.tasks.filter(t => columnOfTask(t) === column.key)"
 				:selected-task-id="selectedTaskId"
+				:can-write="canWriteTasksIn(project)"
 				@open="t => $emit('open', t)"
 				@updated="t => $emit('updated', t)"
 			/>
@@ -61,7 +62,7 @@
 import SwimlaneColumn from './SwimlaneColumn.vue'
 import ColorBubble from '@/components/misc/ColorBubble.vue'
 
-import {columnOfTask, SWIMLANE_COLUMNS, type SwimlaneLane, type SwimlaneProject} from '@/composables/useSwimlaneTasks'
+import {columnOfTask, canWriteTasksIn, SWIMLANE_COLUMNS, type SwimlaneLane, type SwimlaneProject} from '@/composables/useSwimlaneTasks'
 import {formatDisplayDate} from '@/helpers/time/formatDate'
 import {getHexColor} from '@/models/task'
 

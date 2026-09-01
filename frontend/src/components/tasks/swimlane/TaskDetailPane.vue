@@ -45,7 +45,7 @@
 				<div class="task-detail-pane__prop">
 					<span class="task-detail-pane__prop-label">{{ $t('task.attributes.done') }}</span>
 					<FancyCheckbox
-						:disabled="updating"
+						:disabled="updating || !canWrite"
 						:model-value="task.done"
 						@update:modelValue="done => save({done})"
 					/>
@@ -53,7 +53,7 @@
 				<div class="task-detail-pane__prop">
 					<span class="task-detail-pane__prop-label">{{ $t('task.attributes.percentDone') }}</span>
 					<PercentDoneSelect
-						:disabled="updating"
+						:disabled="updating || !canWrite"
 						:model-value="task.percentDone"
 						@update:modelValue="percentDone => save({percentDone})"
 					/>
@@ -67,11 +67,11 @@
 						<Datepicker
 							v-model="dueDate"
 							:choose-date-label="$t('task.detail.chooseDueDate')"
-							:disabled="updating"
+							:disabled="updating || !canWrite"
 							@closeOnChange="saveDueDate"
 						/>
 						<BaseButton
-							v-if="task.dueDate !== null && task.dueDate.getTime() > 0"
+							v-if="canWrite && task.dueDate !== null && task.dueDate.getTime() > 0"
 							class="remove"
 							:aria-label="$t('task.detail.removeDueDate')"
 							@click="() => save({dueDate: null})"
@@ -85,7 +85,7 @@
 				<div class="task-detail-pane__prop">
 					<span class="task-detail-pane__prop-label">{{ $t('task.attributes.priority') }}</span>
 					<PrioritySelect
-						:disabled="updating"
+						:disabled="updating || !canWrite"
 						:model-value="task.priority"
 						@update:modelValue="priority => save({priority: priority as Priority})"
 					/>
@@ -96,7 +96,7 @@
 						:model-value="task.assignees"
 						:task-id="task.id"
 						:project-id="task.projectId"
-						:disabled="updating"
+						:disabled="updating || !canWrite"
 						:list-id="task.projectId"
 						@update:modelValue="assignees => save({assignees})"
 					/>
@@ -106,7 +106,7 @@
 					<EditLabels
 						:model-value="task.labels"
 						:task-id="task.id"
-						:disabled="updating"
+						:disabled="updating || !canWrite"
 						@update:modelValue="labels => save({labels})"
 					/>
 				</div>
@@ -114,7 +114,7 @@
 					<span class="task-detail-pane__prop-label">{{ $t('task.attributes.reminders') }}</span>
 					<Reminders
 						v-model="reminders"
-						:disabled="updating"
+						:disabled="updating || !canWrite"
 						:default-relative-to="remindersDefaultRelativeTo"
 						@update:modelValue="reminders => save({reminders})"
 					/>
@@ -127,7 +127,7 @@
 			<Description
 				:model-value="task"
 				:attachment-upload="attachmentUpload"
-				:can-write="!updating"
+				:can-write="canWrite && !updating"
 				@update:modelValue="t => $emit('updated', t)"
 			/>
 
@@ -163,7 +163,7 @@ import {getHexColor} from '@/models/task'
 import {generateAttachmentUrl, uploadFile} from '@/helpers/attachments'
 import {useTaskStore} from '@/stores/tasks'
 import {useProjectStore} from '@/stores/projects'
-import {isTaskOverdue} from '@/composables/useSwimlaneTasks'
+import {isTaskOverdue, canWriteTasksIn} from '@/composables/useSwimlaneTasks'
 
 import type {ITask} from '@/modelTypes/ITask'
 import type {ITaskReminder} from '@/modelTypes/ITaskReminder'
@@ -200,10 +200,18 @@ watch(() => props.task, task => {
 
 const isOverdue = computed(() => props.task ? isTaskOverdue(props.task, new Date()) : false)
 
+// Writes follow the project's permission: task collections don't carry
+// maxPermission, and the pane has no other source for it.
+const canWrite = computed(() => {
+	if (!props.task) return false
+	const project = projectStore.projects[props.task.projectId]
+	return project !== undefined && canWriteTasksIn(project)
+})
+
 const remindersDefaultRelativeTo = computed<IReminderPeriodRelativeTo>(() => 'due_date')
 
 async function save(changes: Partial<ITask>) {
-	if (!props.task) return
+	if (!props.task || !canWrite.value) return
 	updating.value = true
 	try {
 		const updated = await taskStore.update({

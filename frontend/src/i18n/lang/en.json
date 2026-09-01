@@ -1246,6 +1246,7 @@
       "refresh": "Refresh",
       "noTasks": "Nothing open — everything is done. Nice!",
       "loadError": "The tasks could not be loaded.",
+      "refreshError": "Refreshing failed — showing previously loaded tasks.",
       "showingOf": "Showing {shown} of {total} tasks. Use filters in a project to narrow things down.",
       "emptyColumn": "Nothing here",
       "laneOverdue": "{count} overdue",

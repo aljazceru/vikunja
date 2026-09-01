@@ -3,6 +3,7 @@ import {createPinia, setActivePinia} from 'pinia'
 
 import {
 	MAX_TASKS,
+	canWriteTasksIn,
 	columnOfTask,
 	isTaskOverdue,
 	useSwimlaneTasks,
@@ -131,6 +132,19 @@ describe('constants', () => {
 	it('caps the number of fetched tasks at a sane maximum', () => {
 		expect(MAX_TASKS).toBeLessThanOrEqual(500)
 		expect(MAX_TASKS).toBeGreaterThan(0)
+	})
+})
+
+describe('canWriteTasksIn', () => {
+	it('allows writes for projects with read/write or admin permission', () => {
+		expect(canWriteTasksIn({maxPermission: 1, isArchived: false})).toBe(true)
+		expect(canWriteTasksIn({maxPermission: 2, isArchived: false})).toBe(true)
+	})
+
+	it('denies writes for read-only, unknown or archived projects', () => {
+		expect(canWriteTasksIn({maxPermission: 0, isArchived: false})).toBe(false)
+		expect(canWriteTasksIn({maxPermission: null, isArchived: false})).toBe(false)
+		expect(canWriteTasksIn({maxPermission: 2, isArchived: true})).toBe(false)
 	})
 })
 
