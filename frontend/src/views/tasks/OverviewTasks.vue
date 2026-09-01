@@ -48,6 +48,13 @@
 				@updated="onTaskUpdated"
 			/>
 			<Message
+				v-else-if="error !== null"
+				class="task-overview__empty"
+				variant="danger"
+			>
+				{{ $t('task.overview.loadError') }}
+			</Message>
+			<Message
 				v-else
 				class="task-overview__empty"
 				variant="success"
@@ -87,7 +94,7 @@
 </template>
 
 <script lang="ts" setup>
-import {onMounted, onUnmounted, ref} from 'vue'
+import {onMounted, onUnmounted, ref, watch} from 'vue'
 
 import SwimlaneBoard from '@/components/tasks/swimlane/SwimlaneBoard.vue'
 import TaskDetailPane from '@/components/tasks/swimlane/TaskDetailPane.vue'
@@ -107,6 +114,7 @@ const {
 	lanes,
 	load,
 	applyUpdate,
+	error,
 } = useSwimlaneTasks()
 
 const selectedTask = ref<ITask | null>(null)
@@ -196,6 +204,14 @@ function onTaskUpdated(task: ITask) {
 		selectedTask.value = task.done ? null : task
 	}
 }
+
+// The pane shows a detached object; a reload replaces the tasks array with
+// fresh server state, so re-point the selection at the new object or close
+// the pane when the task no longer matches the open-task filter.
+watch(tasks, fresh => {
+	if (selectedTask.value === null) return
+	selectedTask.value = fresh.find(t => t.id === selectedTask.value?.id) ?? null
+})
 </script>
 
 <style lang="scss" scoped>
