@@ -214,10 +214,20 @@ async function save(changes: Partial<ITask>) {
 	if (!props.task || !canWrite.value) return
 	updating.value = true
 	try {
-		const updated = await taskStore.update({
+		const next = {
 			...props.task,
 			...changes,
-		})
+		}
+		// Same invariant as the main task detail view: with a start date and
+		// no end date, the due date doubles as the end date.
+		if (
+			next.endDate === null &&
+			next.startDate !== null &&
+			next.dueDate !== null
+		) {
+			next.endDate = next.dueDate
+		}
+		const updated = await taskStore.update(next)
 		emit('updated', updated)
 	} finally {
 		updating.value = false

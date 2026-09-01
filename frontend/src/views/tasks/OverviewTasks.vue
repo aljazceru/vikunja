@@ -51,6 +51,7 @@
 					:lanes="lanes"
 					:tasks="tasks"
 					:total="total"
+					:selected-task-id="selectedTask !== null ? selectedTask.id : null"
 					@select="selectTask"
 					@updated="onTaskUpdated"
 				/>
@@ -144,7 +145,9 @@ const isResizingPane = ref(false)
 try {
 	const stored = Number(localStorage.getItem(PANE_STORAGE_KEY))
 	if (Number.isFinite(stored) && stored >= PANE_MIN_WIDTH) {
-		paneWidth.value = `${stored}px`
+		// Clamp against the current viewport: a width persisted on a large
+		// screen could otherwise swallow most of a narrower one.
+		paneWidth.value = `${clampPaneWidth(stored)}px`
 	}
 } catch {
 	// ignore malformed values
@@ -154,8 +157,12 @@ function paneMax(): number {
 	return Math.max(PANE_MIN_WIDTH + 200, Math.floor(window.innerWidth * PANE_MAX_WIDTH_FRAC))
 }
 
+function clampPaneWidth(px: number): number {
+	return Math.max(PANE_MIN_WIDTH, Math.min(paneMax(), px))
+}
+
 function setPaneWidth(px: number) {
-	const clamped = Math.max(PANE_MIN_WIDTH, Math.min(paneMax(), px))
+	const clamped = clampPaneWidth(px)
 	paneWidth.value = `${clamped}px`
 	localStorage.setItem(PANE_STORAGE_KEY, String(clamped))
 }
