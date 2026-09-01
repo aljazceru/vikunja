@@ -157,6 +157,7 @@ const (
 	RateLimitLimit             Key = `ratelimit.limit`
 	RateLimitStore             Key = `ratelimit.store`
 	RateLimitNoAuthRoutesLimit Key = `ratelimit.noauthlimit`
+	RateLimitTokenRefreshLimit Key = `ratelimit.tokenrefreshlimit`
 
 	FilesBasePath Key = `files.basepath`
 	FilesMaxSize  Key = `files.maxsize`
@@ -340,14 +341,13 @@ func getRootpathLocation() string {
 // InitDefaultConfig sets default config values
 // This is an extra function so we can call it when initializing tests without initializing the full config
 func InitDefaultConfig() {
-	// Service config
-	random, err := random(32)
-	if err != nil {
-		log.Fatal(err.Error())
-	}
+	initDefaultConfig()
+	// Callers who skip InitConfig still need a usable secret.
+	generateServiceSecretIfEmpty()
+}
 
+func initDefaultConfig() {
 	// Service
-	ServiceSecret.setDefault(random)
 	ServiceJWTTTL.setDefault(259200)      // 72 hours
 	ServiceJWTTTLLong.setDefault(2592000) // 30 days
 	ServiceJWTTTLShort.setDefault(600)    // 10 minutes
@@ -450,6 +450,7 @@ func InitDefaultConfig() {
 	RateLimitPeriod.setDefault(60)
 	RateLimitStore.setDefault("memory")
 	RateLimitNoAuthRoutesLimit.setDefault(10)
+	RateLimitTokenRefreshLimit.setDefault(60)
 	// Files
 	FilesBasePath.setDefault("files")
 	FilesMaxSize.setDefault("20MB")
@@ -521,6 +522,23 @@ func InitDefaultConfig() {
 	}
 	// License
 	LicenseKey.setDefault("")
+}
+
+// generateServiceSecretIfEmpty sets a random service.secret when none was configured.
+// service.secret must have no default until this runs, otherwise an empty value is
+// indistinguishable from a configured one and the service.jwtsecret deprecation
+// migration can't tell whether the user set the new key.
+func generateServiceSecretIfEmpty() {
+	if ServiceSecret.GetString() != "" {
+		return
+	}
+
+	secret, err := random(32)
+	if err != nil {
+		log.Fatal(err.Error())
+	}
+
+	ServiceSecret.setDefault(secret)
 }
 
 // ResolvePath resolves a path relative to service.rootpath.
@@ -613,7 +631,7 @@ func setConfigFromEnv() error {
 func InitConfig() {
 
 	// Set defaults
-	InitDefaultConfig()
+	initDefaultConfig()
 
 	// Init checking for environment variables
 	viper.SetEnvPrefix("vikunja")
@@ -661,13 +679,15 @@ func InitConfig() {
 	// Deprecation: migrate service.JWTSecret → service.secret only when the
 	// user has not explicitly set service.secret (so the new key takes precedence).
 	if ServiceJWTSecret.GetString() != "" {
-		if viper.IsSet(string(ServiceSecret)) {
+		if ServiceSecret.GetString() != "" {
 			log.Warning("config: both service.secret and service.jwtsecret are set. Using service.secret. Please remove service.jwtsecret, it is deprecated and will be removed in a future release.")
 		} else {
 			log.Warning("config: service.jwtsecret is deprecated and will be removed in a future release. Please use service.secret instead.")
 			ServiceSecret.Set(ServiceJWTSecret.GetString())
 		}
 	}
+
+	generateServiceSecretIfEmpty()
 
 	if _, err := url.ParseRequestURI(AvatarGravatarBaseURL.GetString()); err != nil {
 		log.Fatalf("Could not parse gravatarbaseurl: %s", err)

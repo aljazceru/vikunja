@@ -29,6 +29,8 @@ import (
 	"code.vikunja.io/api/pkg/config"
 	"code.vikunja.io/api/pkg/log"
 
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/collectors"
 	"xorm.io/builder"
 	"xorm.io/xorm"
 	"xorm.io/xorm/names"
@@ -114,6 +116,14 @@ func CreateDBEngine() (engine *xorm.Engine, err error) {
 	engine.SetMapper(names.GonicMapper{})
 	logger := log.NewXormLogger(config.LogEnabled.GetBool(), config.LogDatabase.GetString(), config.LogDatabaseLevel.GetString(), config.LogFormat.GetString())
 	engine.SetLogger(logger)
+
+	// xorm connects lazily, so this is where an unreachable database first surfaces. Without it
+	// the first real query reports it instead, which reads as a schema or extension bug (#3287).
+	if err = engine.Ping(); err != nil {
+		return nil, err
+	}
+
+	checkParadeDB(engine)
 
 	x = engine
 	return
@@ -215,7 +225,6 @@ func initPostgresEngine() (engine *xorm.Engine, err error) {
 	}
 	engine.SetConnMaxLifetime(maxLifetime)
 
-	checkParadeDB(engine)
 	return
 }
 
@@ -465,6 +474,20 @@ func NewSession() *xorm.Session {
 // Type returns the db type of the currently configured db
 func Type() schemas.DBType {
 	return x.Dialect().URI().DBType
+}
+
+// RegisterConnectionPoolMetrics exposes pool stats so exhaustion is visible before
+// the instance stops responding. Label is the db type only — never a path or name.
+func RegisterConnectionPoolMetrics(registry *prometheus.Registry) {
+	if x == nil {
+		log.Warningf("Database not initialized, skipping connection pool metrics")
+		return
+	}
+
+	err := registry.Register(collectors.NewDBStatsCollector(x.DB().DB, string(Type())))
+	if err != nil {
+		log.Criticalf("Could not register db stats metrics: %s", err)
+	}
 }
 
 func GetDialect() string {

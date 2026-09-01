@@ -1918,7 +1918,7 @@ const docTemplate = `{
                         "JWTKeyAuth": []
                     }
                 ],
-                "description": "Returns an array with all notifications for the current user.",
+                "description": "Returns an array with all notifications for the current user. Notifications about a project the current user can no longer read are omitted; the filtering happens in the query, so paging and the ` + "`" + `x-pagination-*` + "`" + ` headers all describe the visible notifications only.",
                 "consumes": [
                     "application/json"
                 ],
@@ -11263,6 +11263,9 @@ const docTemplate = `{
                 },
                 "name": {
                     "description": "The full name of the user.",
+                    "type": "string"
+                },
+                "pending_email": {
                     "type": "string"
                 },
                 "settings": {

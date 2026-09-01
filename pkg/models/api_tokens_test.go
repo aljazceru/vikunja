@@ -39,11 +39,12 @@ func TestAPIToken_ReadAll(t *testing.T) {
 	require.NoError(t, err)
 	tokens, is := result.([]*APIToken)
 	assert.Truef(t, is, "tokens are not of type []*APIToken")
-	assert.Len(t, tokens, 2)
+	assert.Len(t, tokens, 3)
 	assert.Len(t, tokens, count)
-	assert.Equal(t, int64(2), total)
+	assert.Equal(t, int64(3), total)
 	assert.Equal(t, int64(1), tokens[0].ID)
 	assert.Equal(t, int64(2), tokens[1].ID)
+	assert.Equal(t, int64(9), tokens[2].ID)
 }
 
 func TestAPIToken_CanDelete(t *testing.T) {
@@ -232,5 +233,18 @@ func TestAPIToken_GetTokenFromTokenString(t *testing.T) {
 
 		require.Error(t, err)
 		assert.True(t, IsErrAPITokenInvalid(err))
+	})
+	t.Run("token shorter than prefix+8 does not panic", func(t *testing.T) {
+		for _, short := range []string{"", "tk_", "tk_a", "tk_abc", "tk_1234567"} {
+			s := db.NewSession()
+			db.LoadAndAssertFixtures(t)
+
+			token, err := GetTokenFromTokenString(s, short)
+
+			require.Errorf(t, err, "short token %q must be rejected", short)
+			assert.True(t, IsErrAPITokenInvalid(err))
+			assert.Nil(t, token)
+			s.Close()
+		}
 	})
 }
