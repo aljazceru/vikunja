@@ -27,7 +27,7 @@
 			:project="lane.project"
 			:collapsed="collapsedProjects.has(lane.project.id)"
 			:selected-task-id="selectedTaskId"
-			@toggle-collapse="() => toggleCollapse(lane.project.id)"
+			@toggleCollapse="() => toggleCollapse(lane.project.id)"
 			@open="openTask"
 			@updated="t => $emit('updated', t)"
 		/>

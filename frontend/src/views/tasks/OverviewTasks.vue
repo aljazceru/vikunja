@@ -45,7 +45,7 @@
 				:tasks="tasks"
 				:total="total"
 				@select="selectTask"
-				@updated="applyUpdate"
+				@updated="onTaskUpdated"
 			/>
 			<Message
 				v-else
@@ -158,8 +158,12 @@ function stopResize() {
 	document.removeEventListener('mouseup', stopResize)
 	document.removeEventListener('touchmove', handleResize)
 	document.removeEventListener('touchend', stopResize)
-	document.body.style.userSelect = previousUserSelect
-	document.body.style.cursor = previousCursor
+	if (previousUserSelect !== undefined) {
+		document.body.style.userSelect = previousUserSelect
+	}
+	if (previousCursor !== undefined) {
+		document.body.style.cursor = previousCursor
+	}
 }
 
 function startResize(event: MouseEvent | TouchEvent) {

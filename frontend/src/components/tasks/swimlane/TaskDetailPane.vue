@@ -47,7 +47,7 @@
 					<FancyCheckbox
 						:disabled="updating"
 						:model-value="task.done"
-						@update:model-value="done => save({done})"
+						@update:modelValue="done => save({done})"
 					/>
 				</div>
 				<div class="task-detail-pane__prop">
@@ -55,7 +55,7 @@
 					<PercentDoneSelect
 						:disabled="updating"
 						:model-value="task.percentDone"
-						@update:model-value="percentDone => save({percentDone})"
+						@update:modelValue="percentDone => save({percentDone})"
 					/>
 				</div>
 				<div
@@ -87,7 +87,7 @@
 					<PrioritySelect
 						:disabled="updating"
 						:model-value="task.priority"
-						@update:model-value="priority => save({priority})"
+						@update:modelValue="priority => save({priority: priority as Priority})"
 					/>
 				</div>
 				<div class="task-detail-pane__prop task-detail-pane__prop--block">
@@ -160,13 +160,15 @@ import XButton from '@/components/input/Button.vue'
 
 import {formatDateSince} from '@/helpers/time/formatDate'
 import {getHexColor} from '@/models/task'
-import {uploadFile} from '@/helpers/attachments'
+import {generateAttachmentUrl, uploadFile} from '@/helpers/attachments'
 import {useTaskStore} from '@/stores/tasks'
 import {useProjectStore} from '@/stores/projects'
 import {isTaskOverdue} from '@/composables/useSwimlaneTasks'
 
 import type {ITask} from '@/modelTypes/ITask'
 import type {ITaskReminder} from '@/modelTypes/ITaskReminder'
+import type {Priority} from '@/constants/priorities'
+import type {IReminderPeriodRelativeTo} from '@/types/IReminderPeriodRelativeTo'
 
 const props = defineProps<{
 	task: ITask | null
@@ -198,7 +200,7 @@ watch(() => props.task, task => {
 
 const isOverdue = computed(() => props.task ? isTaskOverdue(props.task, new Date()) : false)
 
-const remindersDefaultRelativeTo = computed(() => 'due-date')
+const remindersDefaultRelativeTo = computed<IReminderPeriodRelativeTo>(() => 'due_date')
 
 async function save(changes: Partial<ITask>) {
 	if (!props.task) return
@@ -219,10 +221,10 @@ function saveDueDate() {
 	save({dueDate: dueDate.value})
 }
 
-async function attachmentUpload(file: File, onSuccess?: (url: string) => void) {
-	if (!props.task) return []
+async function attachmentUpload(file: File, onSuccess?: (url: string) => void): Promise<string> {
+	if (!props.task) return ''
 	const uploaded = await uploadFile(props.task.id, file, onSuccess)
-	return uploaded
+	return uploaded.length > 0 ? generateAttachmentUrl(props.task.id, uploaded[0].id) : ''
 }
 
 function bubbleColor(hexColor: string): string {

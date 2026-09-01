@@ -65,26 +65,33 @@ export function useSwimlaneTasks() {
 		const taskService = new TaskService()
 		isLoading.value = true
 		try {
+			const fetchPage = (page: number) => taskService.getAll(new TaskModel(), {
+				filter: 'done = false',
+				filter_timezone: authStore.settings.timezone,
+				sort_by: ['due_date', 'id'],
+				order_by: ['asc', 'asc'],
+				per_page: PAGE_SIZE,
+			}, page)
+
 			const collected: ITask[] = []
 			let page = 1
 			do {
-				const pageTasks = await taskService.getAll(new TaskModel(), {
-					filter: 'done = false',
-					filter_timezone: authStore.settings.timezone,
-					sort_by: ['due_date', 'id'],
-					order_by: ['asc', 'asc'],
-					per_page: PAGE_SIZE,
-				}, page)
-				collected.push(...pageTasks)
-				// The pagination headers describe the whole result set, not just this
-				// page: reconstruct the total from the last page's count. A result
-				// count of 0 means the whole filter matches nothing.
-				total.value = taskService.resultCount === 0
-					? 0
-					: (taskService.totalPages - 1) * PAGE_SIZE + taskService.resultCount
+				collected.push(...await fetchPage(page))
 				page++
 			} while (page <= taskService.totalPages && collected.length < MAX_TASKS)
 			tasks.value = collected
+
+			// The total is (all pages but the last, assumed full) plus the last
+			// page's count — only knowable from the final page's response. When
+			// the cap stopped pagination early, fetch just that page for its
+			// count so the reported total is not rounded up to a full page.
+			if (page <= taskService.totalPages) {
+				await fetchPage(taskService.totalPages)
+			}
+			// A result count of 0 means the whole filter matches nothing.
+			total.value = taskService.resultCount === 0
+				? 0
+				: (taskService.totalPages - 1) * PAGE_SIZE + taskService.resultCount
 		} finally {
 			isLoading.value = false
 		}

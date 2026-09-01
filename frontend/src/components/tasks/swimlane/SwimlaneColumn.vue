@@ -20,10 +20,11 @@
 			}"
 			@change="onChange"
 		>
-			<template #item="{element: task}: {element: ITask}">
+			<!-- @vue-ignore -->
+			<template #item="{element: task}">
 				<SwimlaneTaskCard
-					:task="task"
-					:selected="task.id === selectedTaskId"
+					:task="(task as ITask)"
+					:selected="(task as ITask).id === selectedTaskId"
 					@open="t => $emit('open', t)"
 					@updated="t => $emit('updated', t)"
 				/>
@@ -87,11 +88,19 @@ async function onChange(event: {added?: {element: ITask}, removed?: {element: IT
 	const newColumn = props.column
 	if (columnOfTask(task) === newColumn) return
 
-	const updated = await taskStore.update({
-		...task,
-		percentDone: ENTER_PERCENT_DONE[newColumn],
-	})
-	emit('updated', updated)
+	try {
+		const updated = await taskStore.update({
+			...task,
+			percentDone: ENTER_PERCENT_DONE[newColumn],
+		})
+		emit('updated', updated)
+	} catch {
+		// vuedraggable already moved the card between the columns' local
+		// lists and nothing else will resync them. Re-emitting the task as it
+		// exists on the server forces both columns to rebuild from the
+		// unchanged source data, putting the card back where it came from.
+		emit('updated', task)
+	}
 }
 </script>
 
