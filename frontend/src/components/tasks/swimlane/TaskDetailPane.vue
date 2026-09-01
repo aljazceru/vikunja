@@ -251,6 +251,13 @@ function bubbleColor(hexColor: string): string {
 	overflow-y: auto;
 	max-block-size: 100vh;
 
+	// Collapses the desktop layout to nothing while no task is selected so
+	// the board keeps the full width; on mobile the sheet slides away
+	// instead, so it stays rendered there.
+	&.is-empty {
+		display: none;
+	}
+
 	.task-detail-pane__handle {
 		display: none;
 	}
@@ -271,6 +278,10 @@ function bubbleColor(hexColor: string): string {
 
 		&.is-open {
 			transform: none;
+		}
+
+		&.is-empty {
+			display: flex;
 		}
 
 		.task-detail-pane__handle {
