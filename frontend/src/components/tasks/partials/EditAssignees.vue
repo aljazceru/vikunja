@@ -6,6 +6,7 @@
 		:loading="projectUserService.loading"
 		:placeholder="$t('task.assignee.placeholder')"
 		:multiple="true"
+		:disabled="disabled"
 		:search-results="foundUsers"
 		:show-empty="true"
 		label="name"
