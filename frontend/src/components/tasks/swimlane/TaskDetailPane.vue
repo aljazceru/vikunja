@@ -107,7 +107,7 @@
 						:model-value="task.labels"
 						:task-id="task.id"
 						:disabled="updating || !canWrite"
-						@update:modelValue="labels => save({labels})"
+						@update:modelValue="labels => adoptLabels(labels)"
 					/>
 				</div>
 				<div class="task-detail-pane__prop task-detail-pane__prop--block">
@@ -166,6 +166,7 @@ import {useProjectStore} from '@/stores/projects'
 import {isTaskOverdue, canWriteTasksIn} from '@/composables/useSwimlaneTasks'
 
 import type {ITask} from '@/modelTypes/ITask'
+import type {ILabel} from '@/modelTypes/ILabel'
 import type {ITaskReminder} from '@/modelTypes/ITaskReminder'
 import type {Priority} from '@/constants/priorities'
 import type {IReminderPeriodRelativeTo} from '@/types/IReminderPeriodRelativeTo'
@@ -237,6 +238,14 @@ async function save(changes: Partial<ITask>) {
 function saveDueDate() {
 	if (!dueDate.value) return
 	save({dueDate: dueDate.value})
+}
+
+// Label changes are already persisted by EditLabels through the label-task
+// endpoints. The generic task update ignores labels and would answer with
+// the stale set, so adopt them locally instead of re-saving.
+function adoptLabels(labels: ILabel[]) {
+	if (!props.task) return
+	emit('updated', {...props.task, labels})
 }
 
 async function attachmentUpload(file: File, onSuccess?: (url: string) => void): Promise<string> {
