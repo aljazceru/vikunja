@@ -42,7 +42,7 @@
 </template>
 
 <script lang="ts" setup>
-import {ref, watch} from 'vue'
+import {ref} from 'vue'
 
 import ProjectLane from './ProjectLane.vue'
 
@@ -56,18 +56,19 @@ import {
 import type {ITask} from '@/modelTypes/ITask'
 import type {IProject} from '@/modelTypes/IProject'
 
-const props = defineProps<{
+const props = withDefaults(defineProps<{
 	lanes: SwimlaneLane[]
 	tasks: ITask[]
 	total: number
-}>()
+	selectedTaskId?: ITask['id'] | null
+}>(), {
+	selectedTaskId: null,
+})
 
 const emit = defineEmits<{
 	'select': [task: ITask | null]
 	'updated': [task: ITask]
 }>()
-
-const selectedTaskId = ref<ITask['id'] | null>(null)
 
 // Lane collapse state persists per project across sessions.
 const STORAGE_KEY = 'swimlane-overview-collapsed-projects'
@@ -96,19 +97,8 @@ function tasksInColumn(column: SwimlaneColumnKey): number {
 }
 
 function openTask(task: ITask) {
-	selectedTaskId.value = task.id
 	emit('select', task)
 }
-
-// Clear the selection when its task disappears from the open-task set
-// (e.g. it was completed somewhere else in the board).
-watch(() => props.tasks, () => {
-	if (selectedTaskId.value === null) return
-	if (!props.tasks.some(t => t.id === selectedTaskId.value)) {
-		selectedTaskId.value = null
-		emit('select', null)
-	}
-})
 </script>
 
 <style lang="scss" scoped>
