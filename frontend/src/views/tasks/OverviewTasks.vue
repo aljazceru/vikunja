@@ -113,6 +113,7 @@ import Message from '@/components/misc/Message.vue'
 import XButton from '@/components/input/Button.vue'
 
 import {useSwimlaneTasks} from '@/composables/useSwimlaneTasks'
+import {useAuthStore} from '@/stores/auth'
 
 import type {ITask} from '@/modelTypes/ITask'
 
@@ -129,7 +130,14 @@ const {
 
 const selectedTask = ref<ITask | null>(null)
 
-onMounted(() => load())
+const authStore = useAuthStore()
+
+onMounted(() => {
+	// Auth-only route: skip the initial fetch until the auth bootstrap is
+	// done, the same guard ShowTasks uses — otherwise signed-out visitors
+	// see the error state flash before the login redirect happens.
+	if (authStore.authenticated) load()
+})
 
 // --- Resizable detail pane -------------------------------------------------
 // The pane is the rightmost column, so its width follows the pointer distance

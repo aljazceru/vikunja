@@ -4,6 +4,7 @@ import TaskService from '@/services/task'
 import TaskModel from '@/models/task'
 import {useAuthStore} from '@/stores/auth'
 import {useProjectStore} from '@/stores/projects'
+import {useGlobalNow} from '@/composables/useGlobalNow'
 import {PERMISSIONS, type Permission} from '@/constants/permissions'
 
 import type {ITask} from '@/modelTypes/ITask'
@@ -70,6 +71,10 @@ export function canWriteTasksIn(project: Pick<SwimlaneProject, 'maxPermission' |
 export function useSwimlaneTasks() {
 	const authStore = useAuthStore()
 	const projectStore = useProjectStore()
+	// Shared ticking clock: the cards already derive their overdue look from
+	// it, and using it here keeps the lane/header summaries from going stale
+	// when a due time passes while the page stays open.
+	const {now} = useGlobalNow()
 
 	const isLoading = ref(false)
 	const tasks = ref<ITask[]>([])
@@ -125,7 +130,6 @@ export function useSwimlaneTasks() {
 			byProject.set(task.projectId, bucket)
 		}
 
-		const now = new Date()
 		// Lanes follow the sidebar's project order; projects with tasks but not
 		// in the store (shouldn't happen — they'd be unreadable) go last.
 		const ordered: SwimlaneProject[] = [
@@ -143,11 +147,11 @@ export function useSwimlaneTasks() {
 
 		return ordered.map(project => {
 			const laneTasks = byProject.get(project.id) ?? []
-			const overdueCount = laneTasks.filter(t => isTaskOverdue(t, now)).length
+			const overdueCount = laneTasks.filter(t => isTaskOverdue(t, now.value)).length
 			// "Next" is the next future due date; overdue items already have
 			// their own badge and would otherwise always win this sort.
 			const upcoming = laneTasks
-				.filter(t => t.dueDate !== null && t.dueDate.getTime() > now.getTime())
+				.filter(t => t.dueDate !== null && t.dueDate.getTime() > now.value.getTime())
 				.map(t => t.dueDate as Date)
 				.sort((a, b) => a.getTime() - b.getTime())
 			return {
@@ -160,7 +164,7 @@ export function useSwimlaneTasks() {
 	})
 
 	const overdueCount = computed(() =>
-		tasks.value.reduce((sum, t) => sum + (isTaskOverdue(t, new Date()) ? 1 : 0), 0))
+		tasks.value.reduce((sum, t) => sum + (isTaskOverdue(t, now.value) ? 1 : 0), 0))
 
 	function applyUpdate(updated: ITask) {
 		const i = tasks.value.findIndex(t => t.id === updated.id)
