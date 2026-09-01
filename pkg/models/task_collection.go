@@ -301,6 +301,8 @@ func getFilterValueForBucketFilter(filter string, view *ProjectView) (newFilter 
 // @Success 200 {array} models.Task "The tasks"
 // @Failure 500 {object} models.Message "Internal error"
 // @Router /projects/{id}/views/{view}/tasks [get]
+//
+//nolint:gocyclo // saved-filter / favorites / subscription resolution makes this branch-heavy by nature
 func (tf *TaskCollection) ReadAll(s *xorm.Session, a web.Auth, search string, page int, perPage int) (result interface{}, resultCount int, totalItems int64, err error) {
 
 	tf.pinToLinkShareProject(a)

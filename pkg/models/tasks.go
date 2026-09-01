@@ -554,6 +554,17 @@ func addLabelsToTasks(s *xorm.Session, taskIDs []int64, taskMap map[int64]*Task)
 	return
 }
 
+// AddAssigneesToTasks is the exported form of addAssigneesToTasks for the
+// MCP tools.
+func AddAssigneesToTasks(s *xorm.Session, taskIDs []int64, taskMap map[int64]*Task) error {
+	return addAssigneesToTasks(s, taskIDs, taskMap)
+}
+
+// AddLabelsToTasks is the exported form of addLabelsToTasks for the MCP tools.
+func AddLabelsToTasks(s *xorm.Session, taskIDs []int64, taskMap map[int64]*Task) error {
+	return addLabelsToTasks(s, taskIDs, taskMap)
+}
+
 // Get task attachments
 func addAttachmentsToTasks(s *xorm.Session, taskIDs []int64, taskMap map[int64]*Task) (err error) {
 	attachments, err := getTaskAttachmentsByTaskIDs(s, taskIDs)

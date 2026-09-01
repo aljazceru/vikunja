@@ -60,6 +60,7 @@ import (
 	"code.vikunja.io/api/pkg/config"
 	"code.vikunja.io/api/pkg/license"
 	"code.vikunja.io/api/pkg/log"
+	mcpServer "code.vikunja.io/api/pkg/mcp"
 	"code.vikunja.io/api/pkg/models"
 	"code.vikunja.io/api/pkg/modules/auth/oauth2server"
 	"code.vikunja.io/api/pkg/modules/auth/openid"
@@ -347,6 +348,10 @@ var unauthenticatedAPIPaths = map[string]bool{
 	// WebSocket upgrade (a raw echo route — OpenAPI can't model WebSockets);
 	// it authenticates via its first message, so the upgrade needs no JWT.
 	"/api/v2/ws": true,
+
+	// MCP streamable-http endpoint (raw net/http, self-authenticated with an
+	// API token carrying the mcp.access permission — see pkg/mcp/auth.go).
+	"/api/v2/mcp": true,
 }
 
 // collectRoutesForAPITokens collects all routes for API token permission checking.
@@ -425,6 +430,13 @@ func registerAPIRoutesV2(e *echo.Echo, a *echo.Group, wsRateLimit echo.Middlewar
 	// from the group's JWT middleware. Health and the Atom feed are Huma ops and
 	// self-register via init()/RegisterAll.
 	a.GET("/ws", ws.UpgradeHandler, wsRateLimit)
+
+	// MCP streamable-http endpoint (raw net/http wrapped for echo). It
+	// authenticates itself with an API token carrying the mcp.access
+	// permission, so unauthenticatedAPIPaths exempts it from JWT above.
+	a.POST("/mcp", echo.WrapHandler(mcpServer.Handler()))
+	a.GET("/mcp", echo.WrapHandler(mcpServer.Handler()))
+	a.DELETE("/mcp", echo.WrapHandler(mcpServer.Handler()))
 
 	// Resources self-register via init(); RegisterAll runs them all + AutoPatch.
 	apiv2.RegisterAll(api)

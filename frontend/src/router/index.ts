@@ -178,6 +178,11 @@ const router = createRouter({
 					component: () => import('@/views/user/settings/BotUsers.vue'),
 				},
 				{
+					path: '/user/settings/agents',
+					name: 'user.settings.agents',
+					component: () => import('@/views/user/settings/ManageAgents.vue'),
+				},
+				{
 					path: '/user/settings/migrate',
 					name: 'migrate.start',
 					component: () => import('@/views/migrate/Migration.vue'),

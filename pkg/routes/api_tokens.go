@@ -17,15 +17,19 @@
 package routes
 
 import (
+	"fmt"
 	"net/http"
 	"strings"
+	"time"
 
 	"code.vikunja.io/api/pkg/config"
+	"code.vikunja.io/api/pkg/db"
 	"code.vikunja.io/api/pkg/events"
 	"code.vikunja.io/api/pkg/log"
 	"code.vikunja.io/api/pkg/models"
 	"code.vikunja.io/api/pkg/modules/auth"
 	"code.vikunja.io/api/pkg/modules/humabridge"
+	"code.vikunja.io/api/pkg/modules/keyvalue"
 	"code.vikunja.io/api/pkg/web"
 
 	echojwt "github.com/labstack/echo-jwt/v5"
@@ -75,6 +79,24 @@ func SetupTokenMiddleware() echo.MiddlewareFunc {
 	})
 }
 
+// touchTokenLastUsed persists api_tokens.last_used_at at most once per minute
+// per token, guarded by a keyvalue TTL entry so the common case costs no DB
+// round-trip. Runs fire-and-forget; failures only degrade the heartbeat.
+func touchTokenLastUsed(token *models.APIToken) {
+	key := fmt.Sprintf("api_token_last_used_%d", token.ID)
+	if _, exists, _ := keyvalue.Get(key); exists {
+		return
+	}
+	if err := keyvalue.PutWithTTL(key, true, time.Minute); err != nil {
+		log.Debugf("Could not set api token last-used throttle: %s", err)
+	}
+	s := db.NewSession()
+	defer s.Close()
+	if err := token.TouchLastUsed(s); err != nil {
+		log.Debugf("Could not update api token last_used_at: %s", err)
+	}
+}
+
 // An autopatch leg inherits the client PATCH's authorisation only as long as it
 // resolves to the very route that PATCH was authorised against.
 func shouldSkipRouteCheck(c *echo.Context) bool {
@@ -106,6 +128,8 @@ func checkAPITokenAndPutItInContext(tokenHeaderValue string, c *echo.Context, sk
 
 	c.Set("api_token", token)
 	c.Set("api_user", u)
+
+	go touchTokenLastUsed(token)
 
 	if config.AuditEnabled.GetBool() {
 		// Only the audit listener consumes this, and autopatch's internal legs are

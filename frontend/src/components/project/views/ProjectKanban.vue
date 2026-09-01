@@ -291,7 +291,7 @@
 </template>
 
 <script setup lang="ts">
-import {computed, nextTick, ref, watch, toRef} from 'vue'
+import {computed, nextTick, onBeforeUnmount, onMounted, ref, watch, toRef} from 'vue'
 import {useRouter} from 'vue-router'
 import {useRouteQuery} from '@vueuse/router'
 import {useI18n} from 'vue-i18n'
@@ -324,6 +324,9 @@ import {calculateItemPosition} from '@/helpers/calculateItemPosition'
 
 import {isSavedFilter, useSavedFilter} from '@/services/savedFilter'
 import {useTaskDragToProject} from '@/composables/useTaskDragToProject'
+import {useWebSocket} from '@/composables/useWebSocket'
+import {objectToCamelCase} from '@/helpers/case'
+import TaskModel from '@/models/task'
 import {success, error} from '@/message'
 import {useProjectStore} from '@/stores/projects'
 import type {TaskFilterParams} from '@/services/taskCollection'
@@ -517,6 +520,51 @@ watch(
 		deep: true,
 	},
 )
+
+// Live updates: task changes made by anyone with access (e.g. an agent
+// claiming work) arrive over the websocket and move cards on the open board
+// without a reload. Websocket payloads are raw API JSON (snake_case), so they
+// get camelCased before touching the typed store.
+const {subscribe: wsSubscribe} = useWebSocket()
+
+function handleTaskUpdated(rawTask: Record<string, unknown>) {
+	const task = new TaskModel(objectToCamelCase(rawTask))
+	if (!task || buckets.value.length === 0) return
+	// Ignore tasks of other projects (only relevant for saved-filter boards).
+	if (!groupByProject.value && task.projectId !== projectIdWithFallback.value) return
+
+	const {bucketIndex, taskIndex} = kanbanStore.getTaskById(task.id)
+	if (bucketIndex === null || taskIndex === null) {
+		// Task not loaded on this board — nothing to move.
+		return
+	}
+
+	const bucketForThisView = (task.buckets ?? []).find(b => b.projectViewId === props.viewId)
+	if (bucketForThisView) {
+		const currentBucket = buckets.value[bucketIndex]
+		if (currentBucket?.id !== bucketForThisView.id) {
+			kanbanStore.moveTaskToBucket(task, bucketForThisView.id)
+			return
+		}
+	}
+	kanbanStore.setTaskInBucket(task)
+}
+
+function handleTaskDeleted(rawTask: Record<string, unknown>) {
+	if (!rawTask) return
+	kanbanStore.removeTaskInBucket(new TaskModel(objectToCamelCase(rawTask)))
+}
+
+let unsubTaskUpdated: (() => void) | null = null
+let unsubTaskDeleted: (() => void) | null = null
+onMounted(() => {
+	unsubTaskUpdated = wsSubscribe('task.updated', msg => handleTaskUpdated(msg.data as Record<string, unknown>))
+	unsubTaskDeleted = wsSubscribe('task.deleted', msg => handleTaskDeleted(msg.data as Record<string, unknown>))
+})
+onBeforeUnmount(() => {
+	unsubTaskUpdated?.()
+	unsubTaskDeleted?.()
+})
 
 function setTaskContainerRef(id: IBucket['id'], el: HTMLElement) {
 	if (!el) return

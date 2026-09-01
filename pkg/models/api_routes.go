@@ -49,6 +49,15 @@ func init() {
 			Method: "GET",
 		},
 	}
+	// MCP endpoint token gate. The MCP streamable-http endpoint authenticates
+	// itself (see pkg/mcp) rather than going through the JWT middleware, but
+	// requires this permission on the token.
+	apiTokenRoutesV2["mcp"] = APITokenRoute{
+		"access": &RouteDetail{
+			Path:   "/api/v2/mcp",
+			Method: "POST",
+		},
+	}
 }
 
 type APITokenRoute map[string]*RouteDetail

@@ -51,6 +51,8 @@ type APIToken struct {
 	APIPermissions APIPermissions `xorm:"json not null permissions" json:"permissions" valid:"required" doc:"The permissions this token has. Possible values are available via the /routes endpoint and consist of the keys of the list from that endpoint. For example, if the token should be able to read all tasks as well as update existing tasks, you should add {\"tasks\":[\"read_all\",\"update\"]}."`
 	// The date when this key expires.
 	ExpiresAt time.Time `xorm:"not null" json:"expires_at" valid:"required" doc:"The date when this key expires."`
+	// The last time this key was used to authenticate a request. Updated at most once per minute.
+	LastUsedAt time.Time `xorm:"null" json:"last_used_at,omitempty" readOnly:"true" doc:"The last time this key was used to authenticate a request. Only updated once per minute; zero value means never used."`
 
 	// A timestamp when this api key was created. You cannot change this value.
 	Created time.Time `xorm:"created not null" json:"created" readOnly:"true" doc:"A timestamp when this api key was created. You cannot change this value."`
@@ -249,6 +251,22 @@ func (t *APIToken) HasFeedsAccess() bool {
 		return false
 	}
 	return slices.Contains(perms, "access")
+}
+
+// HasMCPAccess checks whether the token may use the MCP endpoint.
+func (t *APIToken) HasMCPAccess() bool {
+	perms, has := t.APIPermissions["mcp"]
+	if !has {
+		return false
+	}
+	return slices.Contains(perms, "access")
+}
+
+// TouchLastUsed persists last_used_at if the throttling interval has passed.
+// Fire-and-forget: callers run it in a goroutine, errors are only logged by the caller.
+func (t *APIToken) TouchLastUsed(s *xorm.Session) error {
+	_, err := s.Exec("UPDATE api_tokens SET last_used_at = ? WHERE id = ?", time.Now(), t.ID)
+	return err
 }
 
 // GetTokenFromTokenString returns the full token object from the original token string.

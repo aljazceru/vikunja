@@ -95,6 +95,18 @@ func notificationConn(userID int64) *Connection {
 	}
 }
 
+func taskEventConn(userID int64, events ...string) *Connection {
+	subscriptions := map[string]bool{}
+	for _, e := range events {
+		subscriptions[e] = true
+	}
+	return &Connection{
+		userID:        userID,
+		subscriptions: subscriptions,
+		send:          make(chan OutgoingMessage, 16),
+	}
+}
+
 // Commits first: the listener opens its own session, so anything still inside
 // the test transaction is invisible to it.
 func handleNotificationCreated(t *testing.T, s *xorm.Session, notificationID, userID int64) {
