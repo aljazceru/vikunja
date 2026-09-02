@@ -383,6 +383,11 @@ var unauthenticatedAPIPaths = map[string]bool{
 	// WebSocket upgrade (a raw echo route — OpenAPI can't model WebSockets);
 	// it authenticates via its first message, so the upgrade needs no JWT.
 	"/api/v2/ws": true,
+
+	// GitHub webhook receiver (also a raw echo route: GitHub posts a different
+	// JSON shape per event, which Huma's request validation can't model);
+	// deliveries authenticate via the connection's HMAC signature.
+	"/api/v2/integrations/github/webhook": true,
 }
 
 // collectRoutesForAPITokens collects all routes for API token permission checking.
@@ -461,6 +466,14 @@ func registerAPIRoutesV2(e *echo.Echo, a *echo.Group) {
 	// from the group's JWT middleware. Health and the Atom feed are Huma ops and
 	// self-register via init()/RegisterAll.
 	a.GET("/ws", ws.UpgradeHandler)
+
+	// The GitHub webhook receiver is a raw route for the same reason as /ws:
+	// GitHub posts a different JSON payload per event type, which Huma's
+	// request-body validation would reject. HMAC is its authentication, so it's
+	// exempted from the JWT middleware via unauthenticatedAPIPaths.
+	if config.GithubEnabled.GetBool() {
+		a.POST("/integrations/github/webhook", apiv2.GitHubWebhookHandler)
+	}
 
 	// Resources self-register via init(); RegisterAll runs them all + AutoPatch.
 	apiv2.RegisterAll(api)

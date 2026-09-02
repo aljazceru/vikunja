@@ -2655,3 +2655,114 @@ func (err ErrUserDataExportDoesNotExist) HTTPError() web.HTTPError {
 		Message:  "No user data export found.",
 	}
 }
+
+// =================
+// GitHub integration errors
+// =================
+
+// ErrGitHubConnectionDoesNotExist represents an error where a GitHub connection does not exist
+type ErrGitHubConnectionDoesNotExist struct {
+	ID int64
+}
+
+// IsErrGitHubConnectionDoesNotExist checks if an error is ErrGitHubConnectionDoesNotExist.
+func IsErrGitHubConnectionDoesNotExist(err error) bool {
+	_, ok := err.(ErrGitHubConnectionDoesNotExist)
+	return ok
+}
+
+func (err ErrGitHubConnectionDoesNotExist) Error() string {
+	return fmt.Sprintf("GitHub connection does not exist [ID: %v]", err.ID)
+}
+
+// ErrCodeGitHubConnectionDoesNotExist holds the unique world-error code of this error
+const ErrCodeGitHubConnectionDoesNotExist = 20001
+
+// HTTPError holds the http error description
+func (err ErrGitHubConnectionDoesNotExist) HTTPError() web.HTTPError {
+	return web.HTTPError{
+		HTTPCode: http.StatusNotFound,
+		Code:     ErrCodeGitHubConnectionDoesNotExist,
+		Message:  "This GitHub connection does not exist.",
+	}
+}
+
+// ErrGitHubRepoAlreadyConnected represents an error where the repository is already connected to the project.
+type ErrGitHubRepoAlreadyConnected struct {
+	Repo      string
+	ProjectID int64
+}
+
+// IsErrGitHubRepoAlreadyConnected checks if an error is ErrGitHubRepoAlreadyConnected.
+func IsErrGitHubRepoAlreadyConnected(err error) bool {
+	_, ok := err.(ErrGitHubRepoAlreadyConnected)
+	return ok
+}
+
+func (err ErrGitHubRepoAlreadyConnected) Error() string {
+	return fmt.Sprintf("Repository %s is already connected to project %d", err.Repo, err.ProjectID)
+}
+
+// ErrCodeGitHubRepoAlreadyConnected holds the unique world-error code of this error
+const ErrCodeGitHubRepoAlreadyConnected = 20002
+
+// HTTPError holds the http error description
+func (err ErrGitHubRepoAlreadyConnected) HTTPError() web.HTTPError {
+	return web.HTTPError{
+		HTTPCode: http.StatusBadRequest,
+		Code:     ErrCodeGitHubRepoAlreadyConnected,
+		Message:  "This repository is already connected to this project.",
+	}
+}
+
+// ErrGitHubRepoNotFound represents an error where a repository does not exist or is inaccessible with the given credentials
+type ErrGitHubRepoNotFound struct {
+	Repo string
+}
+
+// IsErrGitHubRepoNotFound checks if an error is ErrGitHubRepoNotFound.
+func IsErrGitHubRepoNotFound(err error) bool {
+	_, ok := err.(ErrGitHubRepoNotFound)
+	return ok
+}
+
+func (err ErrGitHubRepoNotFound) Error() string {
+	return fmt.Sprintf("GitHub repository not found or inaccessible [Repo: %s]", err.Repo)
+}
+
+// ErrCodeGitHubRepoNotFound holds the unique world-error code of this error
+const ErrCodeGitHubRepoNotFound = 20003
+
+// HTTPError holds the http error description
+func (err ErrGitHubRepoNotFound) HTTPError() web.HTTPError {
+	return web.HTTPError{
+		HTTPCode: http.StatusNotFound,
+		Code:     ErrCodeGitHubRepoNotFound,
+		Message:  "This GitHub repository does not exist or is not accessible with the provided credentials.",
+	}
+}
+
+// ErrGitHubInvalidCredentials represents an error where the provided GitHub credentials are missing or invalid
+type ErrGitHubInvalidCredentials struct{}
+
+// IsErrGitHubInvalidCredentials checks if an error is ErrGitHubInvalidCredentials.
+func IsErrGitHubInvalidCredentials(err error) bool {
+	_, ok := err.(ErrGitHubInvalidCredentials)
+	return ok
+}
+
+func (err ErrGitHubInvalidCredentials) Error() string {
+	return "Invalid GitHub credentials"
+}
+
+// ErrCodeGitHubInvalidCredentials holds the unique world-error code of this error
+const ErrCodeGitHubInvalidCredentials = 20004
+
+// HTTPError holds the http error description
+func (err ErrGitHubInvalidCredentials) HTTPError() web.HTTPError {
+	return web.HTTPError{
+		HTTPCode: http.StatusBadRequest,
+		Code:     ErrCodeGitHubInvalidCredentials,
+		Message:  "Invalid GitHub credentials: provide either an installation id or a token, and make sure it can access the repository.",
+	}
+}

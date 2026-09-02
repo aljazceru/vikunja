@@ -33,6 +33,7 @@ import (
 	"code.vikunja.io/api/pkg/models"
 	"code.vikunja.io/api/pkg/modules/auth/ldap"
 	"code.vikunja.io/api/pkg/modules/auth/openid"
+	"code.vikunja.io/api/pkg/modules/github"
 	"code.vikunja.io/api/pkg/modules/keyvalue"
 	migrationHandler "code.vikunja.io/api/pkg/modules/migration/handler"
 	"code.vikunja.io/api/pkg/plugins"
@@ -142,6 +143,7 @@ func FullInit() {
 	models.RegisterAddTaskToFilterViewCron()
 	user.RegisterTokenCleanupCron()
 	models.RegisterSessionCleanupCron()
+	github.RegisterReconcileCron()
 	user.RegisterDeletionNotificationCron()
 	openid.CleanupSavedOpenIDProviders()
 	openid.RegisterEmptyOpenIDTeamCleanupCron()

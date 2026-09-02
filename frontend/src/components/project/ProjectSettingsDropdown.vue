@@ -106,6 +106,13 @@
 				{{ $t('project.webhooks.title') }}
 			</DropdownItem>
 			<DropdownItem
+				v-if="githubEnabled"
+				:to="{ name: 'project.settings.github', params: { projectId: project.id } }"
+				icon="code-branch"
+			>
+				{{ $t('project.github.title') }}
+			</DropdownItem>
+			<DropdownItem
 				:to="{ name: 'project.createFromParent', params: { parentProjectId: project.id } }"
 				icon="layer-group"
 			>
@@ -157,6 +164,7 @@ watchEffect(() => {
 
 const configStore = useConfigStore()
 const backgroundsEnabled = computed(() => configStore.enabledBackgroundProviders?.length > 0)
+const githubEnabled = computed(() => configStore.githubIntegrationEnabled)
 
 function setSubscriptionInStore(sub: ISubscription) {
 	subscription.value = sub

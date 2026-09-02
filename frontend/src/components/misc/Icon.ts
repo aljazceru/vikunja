@@ -25,6 +25,7 @@ import {
 	faCircleInfo,
 	faCloudDownloadAlt,
 	faCloudUploadAlt,
+	faCodeBranch,
 	faCocktail,
 	faCoffee,
 	faCog,
@@ -139,6 +140,7 @@ library.add(faCircleInfo)
 library.add(faCircleQuestion)
 library.add(faClock)
 library.add(faCloudDownloadAlt)
+library.add(faCodeBranch)
 library.add(faCloudUploadAlt)
 library.add(faCocktail)
 library.add(faCoffee)

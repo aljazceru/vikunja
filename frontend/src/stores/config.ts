@@ -30,6 +30,7 @@ export interface ConfigState {
 	taskCommentsEnabled: boolean,
 	demoModeEnabled: boolean,
 	webhooksEnabled: boolean,
+	githubIntegrationEnabled: boolean,
 	auth: {
 		local: {
 			enabled: boolean,
@@ -72,6 +73,7 @@ export const useConfigStore = defineStore('config', () => {
 		taskCommentsEnabled: true,
 		demoModeEnabled: false,
 		webhooksEnabled: false,
+		githubIntegrationEnabled: true,
 		auth: {
 			local: {
 				enabled: true,

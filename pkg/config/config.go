@@ -239,6 +239,15 @@ const (
 	PluginsDir     Key = `plugins.dir`
 	PluginsLoader  Key = `plugins.loader`
 
+	// GitHub integration. The App credentials enable installation-token auth
+	// for whole orgs; without them, connections fall back to per-connection
+	// personal access tokens supplied when connecting a repo.
+	GithubEnabled       Key = `github.enabled`
+	GithubAppID         Key = `github.appid`
+	GithubAppPrivateKey Key = `github.appprivatekey`
+	GithubWebhookSecret Key = `github.webhooksecret` // #nosec G101 -- a config key name, not a credential
+	GithubWebhookURL    Key = `github.webhookurl`
+
 	// LicenseKey gates optional paid features and funds Vikunja's development.
 	// See the package comment in pkg/license/license.go before removing.
 	LicenseKey Key = `license.key`
@@ -504,6 +513,12 @@ func InitDefaultConfig() {
 	PluginsEnabled.setDefault(false)
 	PluginsDir.setDefault(ResolvePath("plugins"))
 	PluginsLoader.setDefault("native")
+	// GitHub integration
+	GithubEnabled.setDefault(true)
+	GithubAppID.setDefault("")
+	GithubAppPrivateKey.setDefault("")
+	GithubWebhookSecret.setDefault("")
+	GithubWebhookURL.setDefault("")
 
 	// Migrate deprecated webhook config keys to outgoingrequests.*
 	// This allows removing the old keys in a single place later.

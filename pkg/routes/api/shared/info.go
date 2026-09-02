@@ -51,6 +51,7 @@ type VikunjaInfos struct {
 	TaskCommentsEnabled        bool              `json:"task_comments_enabled" doc:"Whether task comments are enabled."`
 	DemoModeEnabled            bool              `json:"demo_mode_enabled" doc:"Whether this instance runs in demo mode (data is periodically reset)."`
 	WebhooksEnabled            bool              `json:"webhooks_enabled" doc:"Whether webhooks are enabled."`
+	GitHubIntegrationEnabled   bool              `json:"github_integration_enabled" doc:"Whether the GitHub integration is enabled — projects can then be connected to GitHub repositories so their issues and pull requests are mirrored as tasks."`
 	PublicTeamsEnabled         bool              `json:"public_teams_enabled" doc:"Whether public teams are enabled."`
 	AllowIconChanges           bool              `json:"allow_icon_changes" doc:"Whether users may change project icons."`
 	EnabledProFeatures         []license.Feature `json:"enabled_pro_features" doc:"The licensed pro features enabled on this instance."`
@@ -92,24 +93,25 @@ type LegalInfo struct {
 // both API versions.
 func BuildInfo() VikunjaInfos {
 	info := VikunjaInfos{
-		Version:                version.Version,
-		FrontendURL:            config.ServicePublicURL.GetString(),
-		Motd:                   config.ServiceMotd.GetString(),
-		LinkSharingEnabled:     config.ServiceEnableLinkSharing.GetBool(),
-		MaxFileSize:            config.FilesMaxSize.GetString(),
-		MaxItemsPerPage:        config.ServiceMaxItemsPerPage.GetInt(),
-		TaskAttachmentsEnabled: config.ServiceEnableTaskAttachments.GetBool(),
-		TotpEnabled:            config.ServiceEnableTotp.GetBool(),
-		CaldavEnabled:          config.ServiceEnableCaldav.GetBool(),
-		EmailRemindersEnabled:  config.ServiceEnableEmailReminders.GetBool(),
-		UserDeletionEnabled:    config.ServiceEnableUserDeletion.GetBool(),
-		TaskCommentsEnabled:    config.ServiceEnableTaskComments.GetBool(),
-		DemoModeEnabled:        config.ServiceDemoMode.GetBool(),
-		WebhooksEnabled:        config.WebhooksEnabled.GetBool(),
-		PublicTeamsEnabled:     config.ServiceEnablePublicTeams.GetBool(),
-		AllowIconChanges:       config.ServiceAllowIconChanges.GetBool(),
-		ConcurrentWrites:       config.DatabaseType.GetString() != "sqlite",
-		EnabledProFeatures:     license.EnabledProFeatures(),
+		Version:                  version.Version,
+		FrontendURL:              config.ServicePublicURL.GetString(),
+		Motd:                     config.ServiceMotd.GetString(),
+		LinkSharingEnabled:       config.ServiceEnableLinkSharing.GetBool(),
+		MaxFileSize:              config.FilesMaxSize.GetString(),
+		MaxItemsPerPage:          config.ServiceMaxItemsPerPage.GetInt(),
+		TaskAttachmentsEnabled:   config.ServiceEnableTaskAttachments.GetBool(),
+		TotpEnabled:              config.ServiceEnableTotp.GetBool(),
+		CaldavEnabled:            config.ServiceEnableCaldav.GetBool(),
+		EmailRemindersEnabled:    config.ServiceEnableEmailReminders.GetBool(),
+		UserDeletionEnabled:      config.ServiceEnableUserDeletion.GetBool(),
+		TaskCommentsEnabled:      config.ServiceEnableTaskComments.GetBool(),
+		DemoModeEnabled:          config.ServiceDemoMode.GetBool(),
+		WebhooksEnabled:          config.WebhooksEnabled.GetBool(),
+		GitHubIntegrationEnabled: config.GithubEnabled.GetBool(),
+		PublicTeamsEnabled:       config.ServiceEnablePublicTeams.GetBool(),
+		AllowIconChanges:         config.ServiceAllowIconChanges.GetBool(),
+		ConcurrentWrites:         config.DatabaseType.GetString() != "sqlite",
+		EnabledProFeatures:       license.EnabledProFeatures(),
 		AvailableMigrators: []string{
 			(&vikunja_file.FileMigrator{}).Name(),
 			(&ticktick.Migrator{}).Name(),

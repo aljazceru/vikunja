@@ -1094,6 +1094,36 @@
             ]
         },
         {
+            "key": "github",
+            "children": [
+                {
+                    "key": "enabled",
+                    "default_value": "true",
+                    "comment": "Whether to enable the GitHub integration. When enabled, projects can be connected to GitHub repositories so that their issues and pull requests are mirrored as tasks."
+                },
+                {
+                    "key": "appid",
+                    "default_value": "",
+                    "comment": "The numeric ID of the GitHub App used for org/repo access via installation tokens. Only needed if you want to connect repositories through a GitHub App instead of personal access tokens."
+                },
+                {
+                    "key": "appprivatekey",
+                    "default_value": "",
+                    "comment": "The PEM-encoded private key of the GitHub App. Can also be a path to a file containing the key via `github.appprivatekey.file`."
+                },
+                {
+                    "key": "webhooksecret",
+                    "default_value": "",
+                    "comment": "The webhook secret configured on the GitHub App. GitHub signs all App webhook deliveries with it; deliveries for personal-access-token connections use per-connection secrets generated automatically."
+                },
+                {
+                    "key": "webhookurl",
+                    "default_value": "",
+                    "comment": "The public URL under which the GitHub webhook receiver is reachable, e.g. `https://vikunja.example.com/api/v2/integrations/github/webhook`. Defaults to a path appended to `service.publicurl`. Only needed when the public URL cannot be derived automatically."
+                }
+            ]
+        },
+        {
             "key": "license",
             "children": [
                 {
