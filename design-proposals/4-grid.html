@@ -1,0 +1,636 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Proposal 4 — Grid · Swimlanes</title>
+<style>
+	:root {
+		--bg: #f4f5f7;
+		--panel: #ffffff;
+		--border: #e2e4e8;
+		--border-soft: #eceef2;
+		--text: #1a1d21;
+		--muted: #6b717c;
+		--faint: #9aa0ab;
+		--accent: #ff5c1a;
+		--accent-dark: #e04d10;
+		--accent-tint: #fff3ec;
+		--red: #d64545;
+		--amber: #c78a12;
+		--green: #1f9254;
+		--mono: ui-monospace, 'SF Mono', 'Cascadia Code', Menlo, Consolas, monospace;
+	}
+	* { margin: 0; padding: 0; box-sizing: border-box; }
+	html, body { height: 100%; }
+	body {
+		font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Inter', sans-serif;
+		font-size: 12.5px; color: var(--text); background: var(--bg);
+		-webkit-font-smoothing: antialiased;
+		overflow: hidden;
+	}
+	.shell { display: flex; flex-direction: column; height: 100vh; }
+
+	/* ---------- Top bar ---------- */
+	.topbar {
+		height: 46px; background: var(--panel);
+		border-bottom: 1px solid var(--border);
+		display: flex; align-items: center; gap: 12px; padding: 0 14px;
+		flex-shrink: 0;
+	}
+	.brand { display: flex; align-items: center; gap: 8px; font-weight: 700; font-size: 13px; }
+	.brand-mark {
+		width: 22px; height: 22px; border-radius: 5px; background: var(--accent);
+		color: #fff; display: grid; place-items: center; font-size: 12px; font-weight: 800;
+	}
+	.crumb { color: var(--muted); font-size: 12px; }
+	.crumb b { color: var(--text); font-weight: 600; }
+	.cmdbtn {
+		margin: 0 auto; width: 380px;
+		display: flex; align-items: center; gap: 8px;
+		border: 1px solid var(--border); border-radius: 6px;
+		padding: 5.5px 10px; color: var(--faint); font-size: 12px;
+		cursor: pointer; background: var(--bg);
+	}
+	.cmdbtn:hover { border-color: #c9ccd4; }
+	.cmdbtn kbd, kbd.kbd {
+		font-family: var(--mono); font-size: 10px;
+		background: #fff; border: 1px solid var(--border);
+		border-bottom-width: 1.5px; border-radius: 4px; padding: 1px 5px; color: var(--muted);
+	}
+	.cmdbtn .right { margin-left: auto; display: flex; gap: 3px; }
+	.seg { display: flex; border: 1px solid var(--border); border-radius: 6px; overflow: hidden; }
+	.seg span { padding: 5px 11px; font-size: 11.5px; color: var(--muted); cursor: pointer; }
+	.seg span:hover { background: var(--bg); }
+	.seg span.on { background: #1a1d21; color: #fff; }
+	.tico {
+		width: 29px; height: 29px; border-radius: 6px;
+		display: grid; place-items: center; cursor: pointer; color: var(--muted);
+	}
+	.tico:hover { background: var(--bg); color: var(--text); }
+	.avatar {
+		width: 24px; height: 24px; border-radius: 50%;
+		display: grid; place-items: center; color: #fff;
+		font-size: 9.5px; font-weight: 700; flex-shrink: 0;
+	}
+	.avatar.am { background: #d9663c; } .avatar.jk { background: #3b6fd4; }
+	.avatar.rs { background: #2e8f68; } .avatar.mt { background: #8f5fd0; }
+	.avatar.sm { background: #c05a7d; }
+
+	/* ---------- Command palette ---------- */
+	.overlay {
+		position: fixed; inset: 0; background: rgba(15, 17, 21, .42);
+		display: none; z-index: 100; backdrop-filter: blur(2px);
+	}
+	.overlay.open { display: block; }
+	.palette {
+		position: absolute; top: 12%; left: 50%; transform: translateX(-50%);
+		width: 580px; background: var(--panel); border-radius: 10px;
+		box-shadow: 0 24px 70px rgba(10, 12, 20, .4);
+		overflow: hidden; border: 1px solid var(--border);
+	}
+	.pal-input {
+		display: flex; align-items: center; gap: 10px; padding: 14px 16px;
+		border-bottom: 1px solid var(--border);
+	}
+	.pal-input .q { flex: 1; border: none; outline: none; font: inherit; font-size: 13.5px; }
+	.pal-input .q::placeholder { color: var(--faint); }
+	.pal-section { font-size: 10.5px; letter-spacing: .07em; text-transform: uppercase; color: var(--faint); font-weight: 700; padding: 10px 16px 4px; }
+	.pal-item { display: flex; align-items: center; gap: 11px; padding: 8px 16px; cursor: pointer; font-size: 12.5px; }
+	.pal-item .pi { width: 16px; text-align: center; color: var(--muted); }
+	.pal-item .hint { margin-left: auto; display: flex; gap: 4px; color: var(--faint); }
+	.pal-item.sel { background: var(--accent-tint); }
+	.pal-item.sel .pi { color: var(--accent); }
+	.pal-foot {
+		display: flex; gap: 14px; padding: 8px 16px;
+		border-top: 1px solid var(--border); background: var(--bg);
+		color: var(--faint); font-size: 11px;
+	}
+	.pal-foot span { display: flex; align-items: center; gap: 5px; }
+
+	/* ---------- Layout ---------- */
+	.content { flex: 1; display: grid; grid-template-columns: 236px 1fr 330px; min-height: 0; }
+
+	/* ---------- Nav ---------- */
+	.nav { background: var(--panel); border-right: 1px solid var(--border); overflow-y: auto; padding: 10px 8px; }
+	.nav details { margin-bottom: 2px; }
+	.nav summary {
+		list-style: none; cursor: pointer; user-select: none;
+		font-size: 10.5px; letter-spacing: .07em; text-transform: uppercase;
+		color: var(--faint); font-weight: 700; padding: 8px 8px 4px;
+	}
+	.nav summary::-webkit-details-marker { display: none; }
+	.nav summary::before { content: '▾'; display: inline-block; margin-right: 5px; font-size: 9px; color: var(--faint); }
+	.nav details:not([open]) summary::before { transform: rotate(-90deg); }
+	.nrow {
+		display: flex; align-items: center; gap: 8px;
+		padding: 5.5px 8px; border-radius: 5px; cursor: pointer;
+		font-size: 12.5px; color: #3c414b; position: relative;
+	}
+	.nrow:hover { background: var(--bg); }
+	.nrow .tree { color: var(--border); font-size: 10px; width: 12px; flex-shrink: 0; }
+	.nrow.active { background: var(--accent-tint); color: var(--text); font-weight: 600; }
+	.nrow.active::before {
+		content: ''; position: absolute; left: -8px; top: 6px; bottom: 6px;
+		width: 2.5px; background: var(--accent); border-radius: 2px;
+	}
+	.nrow .cnt { margin-left: auto; font-family: var(--mono); font-size: 10.5px; color: var(--faint); }
+	.nrow.active .cnt { color: var(--accent); }
+	.nrow .cnt.late { color: var(--red); font-weight: 700; }
+	.ndot { width: 7px; height: 7px; border-radius: 2px; flex-shrink: 0; }
+	.new-proj { margin-top: 8px; padding: 6px 8px; border-radius: 5px; color: var(--muted); cursor: pointer; font-size: 12px; }
+	.new-proj:hover { background: var(--bg); color: var(--text); }
+
+	/* ---------- Board ---------- */
+	.listpanel { display: flex; flex-direction: column; min-width: 0; background: var(--panel); }
+	.lp-head { display: flex; align-items: center; gap: 10px; padding: 12px 16px 10px; border-bottom: 1px solid var(--border); }
+	.lp-head h2 { font-size: 14.5px; font-weight: 700; letter-spacing: -.01em; }
+	.lp-head .chip {
+		font-family: var(--mono); font-size: 10.5px; color: var(--muted);
+		background: var(--bg); border: 1px solid var(--border);
+		padding: 1px 7px; border-radius: 10px;
+	}
+	.lp-head .chip.warn { color: var(--red); border-color: #f3caca; background: #fdf3f3; }
+	.lp-head .right { margin-left: auto; display: flex; gap: 4px; align-items: center; color: var(--muted); font-size: 11.5px; }
+
+	.board-wrap { flex: 1; overflow-y: auto; padding: 0 10px 24px; }
+	.board-head {
+		display: grid; grid-template-columns: 196px repeat(3, 1fr); gap: 8px;
+		position: sticky; top: 0; z-index: 5; padding: 8px 0 6px;
+		background: linear-gradient(180deg, var(--panel) 80%, transparent);
+	}
+	.board-head .filler { font-size: 10px; letter-spacing: .08em; text-transform: uppercase; color: var(--faint); font-weight: 700; padding: 6px 8px; font-family: var(--mono); }
+	.col-h {
+		display: flex; align-items: center; gap: 7px;
+		font-size: 10px; letter-spacing: .08em; text-transform: uppercase;
+		color: var(--muted); font-weight: 700; padding: 6px 10px;
+		border: 1px solid var(--border-soft); border-radius: 6px; background: var(--bg);
+		font-family: var(--mono);
+	}
+	.col-h .cdot { width: 6px; height: 6px; border-radius: 1.5px; }
+	.col-h .n { margin-left: auto; color: var(--faint); }
+
+	.lane { display: grid; grid-template-columns: 196px 1fr; gap: 8px; margin-bottom: 8px; }
+	.lane-cols { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; min-width: 0; }
+	.lane-label {
+		border: 1px solid var(--border); border-radius: 8px; background: var(--panel);
+		padding: 9px 10px; cursor: pointer; user-select: none;
+		display: flex; flex-direction: column; gap: 4px;
+	}
+	.lane-label:hover { border-color: #c9ccd4; }
+	.lane-label .top { display: flex; align-items: center; gap: 7px; }
+	.lane-label .lname { font-size: 12px; font-weight: 650; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+	.lane-label .lmeta { font-family: var(--mono); font-size: 10px; color: var(--faint); }
+	.lane-label .lmeta .late { color: var(--red); font-weight: 700; }
+	.lane-label .arrow { font-size: 9px; color: var(--faint); margin-left: auto; }
+	.lane.collapsed { grid-template-columns: 196px; }
+	.lane.collapsed .lane-cols { display: none; }
+	.lane.collapsed .arrow { transform: rotate(-90deg); }
+
+	.bucket {
+		background: var(--bg); border: 1px dashed var(--border);
+		border-radius: 8px; padding: 5px; min-height: 38px;
+	}
+	.bucket.empty { display: grid; place-items: center; }
+	.bucket.empty::after { content: '· · ·'; color: var(--border); font-size: 11px; letter-spacing: .2em; }
+
+	.rowcard {
+		display: grid; grid-template-columns: 16px 54px 1fr 62px 26px 20px;
+		align-items: center; gap: 7px;
+		background: var(--panel); border: 1px solid var(--border-soft);
+		border-radius: 6px; padding: 5px 8px; margin-bottom: 5px;
+		cursor: pointer; font-size: 11.5px;
+		border-left: 2px solid transparent;
+	}
+	.rowcard:hover { border-color: var(--border); }
+	.rowcard.sel { background: var(--accent-tint); border-left-color: var(--accent); }
+	.st { font-size: 11px; text-align: center; }
+	.st.todo { color: #b3b8c2; } .st.prog { color: var(--amber); } .st.wait { color: var(--faint); }
+	.rid { font-family: var(--mono); font-size: 9.5px; color: var(--faint); }
+	.rt { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+	.rt .subs { font-family: var(--mono); font-size: 9px; color: var(--faint); margin-left: 6px; }
+	.rdue { font-family: var(--mono); font-size: 9.5px; color: var(--muted); text-align: right; }
+	.rdue.today { color: var(--accent-dark); font-weight: 700; }
+	.rdue.overdue { color: var(--red); font-weight: 700; }
+	.rpri { font-family: var(--mono); font-size: 9.5px; text-align: right; }
+	.p1 { color: var(--red); font-weight: 700; } .p2 { color: var(--amber); font-weight: 700; }
+	.p3 { color: var(--muted); }
+	.rowcard .avatar { width: 18px; height: 18px; font-size: 8px; }
+
+	/* ---------- Detail ---------- */
+	.detail { border-left: 1px solid var(--border); background: var(--panel); overflow-y: auto; padding: 0 0 30px; }
+	.d-pad { padding: 14px 18px 0; }
+	.d-id { font-family: var(--mono); font-size: 10.5px; color: var(--faint); }
+	.d-proj { display: flex; align-items: center; gap: 6px; font-size: 11px; color: var(--muted); margin-top: 4px; }
+	.d-title { font-size: 14px; font-weight: 700; margin-top: 4px; line-height: 1.4; }
+	.dtabs { display: flex; gap: 2px; margin-top: 12px; border-bottom: 1px solid var(--border); }
+	.dtab { padding: 7px 2px 9px; margin-right: 16px; font-size: 12px; color: var(--muted); cursor: pointer; border-bottom: 2px solid transparent; }
+	.dtab.on { color: var(--text); font-weight: 650; border-color: var(--accent); }
+	.props { padding: 4px 0; }
+	.prop { display: flex; align-items: center; padding: 6.5px 0; border-bottom: 1px solid var(--border-soft); font-size: 12px; }
+	.prop .k { width: 82px; color: var(--faint); flex-shrink: 0; font-size: 11.5px; }
+	.prop .v { display: flex; align-items: center; gap: 6px; }
+	.stpill { font-size: 10.5px; font-weight: 650; padding: 1.5px 8px; border-radius: 4px; background: #fdf3e2; color: var(--amber); }
+	.stpill.wait, .stpill.todo { background: var(--bg); color: var(--muted); border: 1px solid var(--border); }
+	.mtag { font-family: var(--mono); font-size: 9.5px; padding: 1px 6px; border-radius: 3px; border: 1px solid; white-space: nowrap; }
+	.mtag.urgent { color: var(--red); border-color: #f3caca; background: #fdf3f3; }
+	.mtag.design { color: #7a55c8; border-color: #e2d6f6; background: #f8f4fe; }
+	.mtag.backend { color: #2e8f68; border-color: #c9ead9; background: #f1faf5; }
+	.mtag.research { color: #3b6fd4; border-color: #d4e2f8; background: #f4f8fe; }
+	.mtag.docs { color: #8a8f99; border-color: #e2e4e8; background: #f7f8fa; }
+	.mtag.errand { color: #a9822f; border-color: #f0e2bd; background: #fdf8ec; }
+	.d-sec { padding: 14px 18px 0; }
+	.d-sec h4 { font-size: 10.5px; letter-spacing: .07em; text-transform: uppercase; color: var(--faint); font-weight: 700; margin-bottom: 8px; }
+	.d-desc { font-size: 12.5px; line-height: 1.65; color: #3c414b; }
+	.ckrow { display: flex; align-items: center; gap: 8px; padding: 4.5px 0; font-size: 12.5px; cursor: pointer; }
+	.ckbox {
+		width: 14px; height: 14px; border-radius: 3.5px;
+		border: 1.5px solid #c9ccd4; display: grid; place-items: center;
+		font-size: 9px; color: transparent;
+	}
+	.ckrow.on .ckbox { background: var(--accent); border-color: var(--accent); color: #fff; }
+	.ckrow.on span { color: var(--faint); text-decoration: line-through; }
+	.ckprog { height: 3px; background: var(--border-soft); border-radius: 3px; margin: 8px 0 6px; overflow: hidden; }
+	.ckprog i { display: block; height: 100%; background: var(--accent); }
+	.act-row { display: flex; gap: 10px; padding: 6px 0; font-size: 11.5px; }
+	.act-row .when { font-family: var(--mono); font-size: 10px; color: var(--faint); white-space: nowrap; padding-top: 1px; width: 40px; }
+	.act-row b { font-weight: 650; }
+
+	/* ---------- Status bar ---------- */
+	.statusbar {
+		height: 28px; background: var(--panel); border-top: 1px solid var(--border);
+		display: flex; align-items: center; padding: 0 12px;
+		font-size: 11px; color: var(--muted); flex-shrink: 0;
+	}
+	.statusbar .sep { margin: 0 10px; color: var(--border); }
+	.live { width: 7px; height: 7px; border-radius: 50%; background: var(--green); display: inline-block; margin-right: 6px; }
+	.statusbar .mono { font-family: var(--mono); font-size: 10px; }
+	.statusbar .right { margin-left: auto; display: flex; gap: 10px; align-items: center; }
+	.statusbar .right kbd { font-family: var(--mono); font-size: 9.5px; background: var(--bg); border: 1px solid var(--border); border-radius: 3px; padding: 0 4px; }
+
+	/* ---------- Mobile ---------- */
+	.m-col-title { display: none; }
+	.menu-btn { display: none; }
+	.scrim { display: none; }
+	.sheet-handle { display: none; }
+	@media (max-width: 880px) {
+		.content { grid-template-columns: 1fr; }
+		.nav {
+			position: fixed; top: 0; bottom: 0; left: 0; width: 264px;
+			z-index: 70; transform: translateX(-104%); transition: transform .22s ease;
+		}
+		.nav.open { transform: none; }
+		.topbar { padding: 0 12px 0 52px; }
+		.cmdbtn { display: none; }
+		.seg { display: none; }
+		.board-head { display: none; }
+		.lane { display: block; }
+		.lane-label { position: sticky; top: 0; z-index: 3; margin-bottom: 6px; }
+		.lane-cols {
+			display: flex; gap: 8px; overflow-x: auto;
+			scroll-snap-type: x mandatory; padding-bottom: 6px;
+		}
+		.lane-cols::-webkit-scrollbar { display: none; }
+		.bucket { min-width: min(86vw, 380px); scroll-snap-align: start; }
+		.m-col-title {
+			display: flex; align-items: center; gap: 7px;
+			font-family: var(--mono); font-size: 9.5px; letter-spacing: .1em; text-transform: uppercase;
+			color: var(--faint); font-weight: 700; padding: 1px 4px 7px;
+		}
+		.detail {
+			position: fixed; left: 0; right: 0; bottom: 0; top: auto; height: 90vh;
+			z-index: 80; transform: translateY(104%); transition: transform .26s ease;
+			border-radius: 12px 12px 0 0; border-left: none; border-top: 1px solid var(--border);
+			box-shadow: 0 -14px 44px rgba(10, 12, 20, .25); padding-top: 10px;
+		}
+		.detail.open { transform: none; }
+		.sheet-handle { display: block; width: 42px; height: 4px; border-radius: 4px; background: var(--border); margin: 0 auto 12px; }
+		.menu-btn {
+			display: grid; place-items: center; position: fixed; top: 5px; left: 8px; z-index: 60;
+			width: 36px; height: 36px; border-radius: 8px;
+			border: 1px solid var(--border); background: var(--panel);
+			cursor: pointer; font-size: 15px; color: var(--text);
+		}
+		.scrim { display: block; position: fixed; inset: 0; background: rgba(15, 17, 21, .45); z-index: 65; opacity: 0; pointer-events: none; transition: opacity .2s; }
+		.scrim.show { opacity: 1; pointer-events: auto; }
+		.statusbar .right { display: none; }
+		.statusbar { font-size: 10px; }
+		.palette { width: min(580px, calc(100vw - 24px)); }
+	}
+
+	.back-link {
+		position: fixed; right: 14px; bottom: 40px; z-index: 50;
+		background: #1a1d21; color: #c9ccd4; padding: 6px 12px; border-radius: 20px;
+		font-size: 11.5px; text-decoration: none;
+	}
+	.back-link:hover { background: #33363d; }
+</style>
+</head>
+<body>
+<button class="menu-btn" id="menuBtn">☰</button>
+<div class="scrim" id="scrim"></div>
+<div class="shell">
+
+	<div class="topbar">
+		<div class="brand"><div class="brand-mark">V</div> Vikunja</div>
+		<div class="crumb">All projects / <b>Open · swimlanes</b></div>
+		<div class="cmdbtn" id="openPal">
+			<span>🔎</span> Search tasks, projects, commands…
+			<span class="right"><kbd>⌘</kbd><kbd>K</kbd></span>
+		</div>
+		<div class="seg">
+			<span>List</span><span class="on">Swimlanes</span><span>Gantt</span><span>Table</span>
+		</div>
+		<div class="tico">⚙</div>
+		<div class="avatar am">AM</div>
+	</div>
+
+	<div class="content">
+
+		<nav class="nav">
+			<details open>
+				<summary>Views</summary>
+				<div class="nrow active"><span class="tree"> </span>📪 All open tasks <span class="cnt">21</span></div>
+				<div class="nrow"><span class="tree"> </span>☀️ Due today <span class="cnt">3</span></div>
+				<div class="nrow"><span class="tree"> </span>⚠️ Overdue <span class="cnt late">2</span></div>
+				<div class="nrow"><span class="tree"> </span>🔥 Assigned to me <span class="cnt">9</span></div>
+			</details>
+			<details open>
+				<summary>Projects · 21 open</summary>
+				<div class="nrow"><span class="ndot" style="background:#3b6fd4"></span> Platform Migration <span class="cnt">5</span></div>
+				<div class="nrow"><span class="ndot" style="background:#8f6ee8"></span> API v2 <span class="cnt">3</span></div>
+				<div class="nrow"><span class="ndot" style="background:#e06ba8"></span> Marketing Site <span class="cnt">4</span></div>
+				<div class="nrow"><span class="ndot" style="background:#5b8def"></span> Team Vikings <span class="cnt">2</span></div>
+				<div class="nrow"><span class="ndot" style="background:#3fb37f"></span> Personal <span class="cnt">2</span></div>
+				<div class="nrow"><span class="ndot" style="background:#e0a23c"></span> Home Renovation <span class="cnt">3</span></div>
+				<div class="nrow"><span class="ndot" style="background:#22a8c9"></span> Q3 Planning <span class="cnt">2</span></div>
+			</details>
+			<details open>
+				<summary>Saved filters</summary>
+				<div class="nrow">Urgent + overdue <span class="cnt late">3</span></div>
+				<div class="nrow">Waiting / blocked <span class="cnt">2</span></div>
+			</details>
+			<div class="new-proj">＋ New project <span style="float:right; font-family:var(--mono); font-size:10px; color:var(--faint)">G P</span></div>
+		</nav>
+
+		<section class="listpanel">
+			<div class="lp-head">
+				<h2>All open tasks</h2>
+				<span class="chip">21</span>
+				<span class="chip warn">2 overdue</span>
+				<div class="right">
+					Lanes: project ▾
+					<div class="tico">⧩</div>
+				</div>
+			</div>
+
+			<div class="board-wrap">
+				<div class="board-head">
+					<div class="filler">7 PROJECTS</div>
+					<div class="col-h"><span class="cdot" style="background:#9aa0ab"></span> TO DO <span class="n">15</span></div>
+					<div class="col-h"><span class="cdot" style="background:#c78a12"></span> IN PROGRESS <span class="n">4</span></div>
+					<div class="col-h"><span class="cdot" style="background:#d9dce2"></span> WAITING <span class="n">2</span></div>
+				</div>
+				<div id="lanes"><!-- rendered --></div>
+			</div>
+		</section>
+
+		<aside class="detail" id="detail"><!-- rendered --></aside>
+	</div>
+
+	<div class="statusbar">
+		<span><span class="live"></span>Synced <span class="mono">2m</span> ago</span>
+		<span class="sep">|</span>
+		<span class="mono">vikunja.cloud/alex</span>
+		<span class="sep">|</span>
+		<span>21 open · 2 overdue · 1 due today · 2 waiting</span>
+		<div class="right">
+			<span><kbd>N</kbd> New task</span>
+			<span><kbd>/</kbd> Search</span>
+			<span><kbd>⌘</kbd><kbd>K</kbd> Commands</span>
+			<span><kbd>?</kbd> Shortcuts</span>
+		</div>
+	</div>
+</div>
+
+<!-- Command palette -->
+<div class="overlay" id="overlay">
+	<div class="palette" id="palette">
+		<div class="pal-input">
+			<span style="color:var(--faint)">⌘</span>
+			<input class="q" placeholder="Type a command or search…" autofocus>
+			<kbd class="kbd">esc</kbd>
+		</div>
+		<div class="pal-section">Actions</div>
+		<div class="pal-item sel"><span class="pi">＋</span> Create new task… <span class="hint"><kbd class="kbd">↵</kbd></span></div>
+		<div class="pal-item"><span class="pi">⚑</span> Filter: overdue only</div>
+		<div class="pal-item"><span class="pi">▤</span> Collapse all lanes except Platform Migration</div>
+		<div class="pal-section">Tasks</div>
+		<div class="pal-item"><span class="pi">◐</span> VIK-142 — Fix login redirect loop… <span class="hint"><span style="font-family:var(--mono); font-size:10px">today</span></span></div>
+		<div class="pal-item"><span class="pi">○</span> VIK-151 — Draft API changelog… <span class="hint"><span style="font-family:var(--mono); font-size:10px; color:var(--red)">Jun 9</span></span></div>
+		<div class="pal-item"><span class="pi">◐</span> MKT-007 — Competitor teardown <span class="hint"><span style="font-family:var(--mono); font-size:10px; color:var(--red)">Jun 9</span></span></div>
+		<div class="pal-section">Navigation</div>
+		<div class="pal-item"><span class="pi">→</span> Go to <b style="margin:0 4px">Platform Migration</b> lane</div>
+		<div class="pal-item"><span class="pi">▦</span> Switch view to Table <span class="hint"><kbd class="kbd">V</kbd><kbd class="kbd">T</kbd></span></div>
+		<div class="pal-foot">
+			<span><kbd class="kbd">↑↓</kbd> navigate</span>
+			<span><kbd class="kbd">↵</kbd> select</span>
+			<span><kbd class="kbd">esc</kbd> close</span>
+		</div>
+	</div>
+</div>
+
+<a class="back-link" href="index.html">← All proposals</a>
+
+<script>
+	const projects = [
+		{ key: 'pm', name: 'Platform Migration', color: '#3b6fd4', late: 2 },
+		{ key: 'api', name: 'API v2', color: '#8f6ee8', late: 0 },
+		{ key: 'mkt', name: 'Marketing Site', color: '#e06ba8', late: 1 },
+		{ key: 'vik', name: 'Team Vikings', color: '#5b8def', late: 0 },
+		{ key: 'per', name: 'Personal', color: '#3fb37f', late: 0 },
+		{ key: 'hom', name: 'Home Renovation', color: '#e0a23c', late: 0 },
+		{ key: 'q3', name: 'Q3 Planning', color: '#22a8c9', late: 0 },
+	];
+	const cols = [
+		{ key: 'todo', name: 'TO DO' },
+		{ key: 'prog', name: 'IN PROGRESS' },
+		{ key: 'wait', name: 'WAITING' },
+	];
+	const tasks = [
+		{ id: 'VIK-142', p: 'pm', st: 'prog', title: 'Fix login redirect loop on mobile', labels: ['urgent', 'backend'], due: 'Today 17:00', dgo: 0, pri: 1, who: 'jk', subs: [2, 4],
+			desc: 'After the OIDC provider redirects back, Safari mobile drops the state parameter and lands on /login again. Suspect SameSite=Lax on the session cookie during a cross-site POST callback.',
+			ck: [['Reproduce on iOS 17 Safari', 1], ['Check cookie flags', 1], ['Patch SameSite for callback', 0], ['Regression test', 0]],
+			act: [['14:32', '<b>JK</b> moved to In progress'], ['-1d', '<b>You</b> assigned Jamie, set P1'], ['-1d', '<b>RS</b>: “Same on Android Chrome.”']] },
+		{ id: 'VIK-151', p: 'pm', st: 'todo', title: 'Draft API changelog for v2 release', labels: ['research'], due: 'Jun 9', dgo: 1, pri: 2, who: 'rs',
+			desc: 'Collect breaking changes between v1 and v2 into a migration guide.',
+			act: [['Jun 7', '<b>You</b> moved due date to Jun 9']] },
+		{ id: 'VIK-137', p: 'pm', st: 'todo', title: 'Port notification handlers to event bus', labels: ['backend'], due: 'Jun 13', dgo: 0, pri: 2, who: 'mt', subs: [1, 5],
+			desc: 'Reminder and mail listeners remain.',
+			ck: [['Port reminder listener', 0], ['Port mail listener', 1], ['Update event docs', 1], ['Load-test listeners', 0], ['Deprecate old bus', 0]],
+			act: [['-2d', '<b>MT</b> started a branch']] },
+		{ id: 'VIK-133', p: 'pm', st: 'todo', title: 'Update OpenAPI spec for saved filters', labels: [], due: 'Jun 18', dgo: 0, pri: 3, who: 'sm', act: [] },
+		{ id: 'VIK-129', p: 'pm', st: 'todo', title: 'Load-test new endpoints', labels: ['backend'], due: 'Jun 19', dgo: 0, pri: 3, who: 'rs', act: [] },
+		{ id: 'API-049', p: 'api', st: 'prog', title: 'Port saved filters endpoint to v2', labels: ['backend'], due: 'Jun 16', dgo: 0, pri: 2, who: 'mt', subs: [1, 3],
+			desc: 'Huma handlers done; permission tests missing.',
+			ck: [['Huma handlers', 1], ['Permission tests', 0], ['OpenAPI annotations', 1]],
+			act: [['3h', '<b>MT</b> pushed feature/huma-crud']] },
+		{ id: 'API-051', p: 'api', st: 'todo', title: 'Write migration guide for v1 clients', labels: ['docs'], due: 'Jun 12', dgo: 0, pri: 2, who: 'jk', act: [] },
+		{ id: 'API-053', p: 'api', st: 'todo', title: 'Webhook payload contract tests', labels: ['backend'], due: 'Jun 14', dgo: 0, pri: 3, who: 'jk', act: [] },
+		{ id: 'MKT-007', p: 'mkt', st: 'prog', title: 'Competitor teardown', labels: ['research'], due: 'Jun 9', dgo: 1, pri: 2, who: 'rs', subs: [3, 6],
+			desc: 'Five of eight competitors documented.',
+			ck: [['Sign up for trials', 1], ['Screenshot flows', 1], ['Pricing matrix', 1], ['Notes: Asana', 1], ['Notes: ClickUp', 0], ['Notes: Todoist', 0]],
+			act: [['-1d', '<b>RS</b> added notes on two tools']] },
+		{ id: 'MKT-012', p: 'mkt', st: 'todo', title: 'Hero copy draft', labels: ['design'], due: 'Jun 17', dgo: 0, pri: 2, who: 'am', act: [] },
+		{ id: 'MKT-014', p: 'mkt', st: 'todo', title: 'Pick illustration style', labels: ['design'], due: 'Jun 19', dgo: 0, pri: 3, who: 'sm', act: [] },
+		{ id: 'MKT-010', p: 'mkt', st: 'todo', title: 'Pricing page wireframe', labels: ['design'], due: 'Jun 21', dgo: 0, pri: 3, who: 'am', act: [] },
+		{ id: 'VIK-023', p: 'vik', st: 'todo', title: 'Prepare sprint retro notes', labels: [], due: 'Thu', dgo: 0, pri: 3, who: 'am', act: [] },
+		{ id: 'VIK-021', p: 'vik', st: 'prog', title: 'Write onboarding guide', labels: ['docs'], due: 'Fri', dgo: 0, pri: 2, who: 'mt', subs: [3, 5],
+			desc: 'Covers account setup, first project, inviting the team.',
+			ck: [['Account setup section', 1], ['First project walkthrough', 1], ['Screenshots', 1], ['Invite teammates', 0], ['Publish', 0]],
+			act: [['4h', '<b>MT</b> completed “Screenshots”']] },
+		{ id: 'PER-031', p: 'per', st: 'todo', title: 'Book dentist appointment', labels: [], due: 'Tomorrow', dgo: 0, pri: 3, who: 'am', act: [] },
+		{ id: 'PER-028', p: 'per', st: 'todo', title: 'Renew passport', labels: [], due: 'Jun 28', dgo: 0, pri: 3, who: 'am', act: [] },
+		{ id: 'HOM-003', p: 'hom', st: 'todo', title: 'Pick paint colors for hallway', labels: ['errand'], due: 'Jun 14', dgo: 0, pri: 3, who: 'am', act: [] },
+		{ id: 'HOM-005', p: 'hom', st: 'wait', title: 'Compare landscaper quotes', labels: [], due: 'Jun 18', dgo: 0, pri: 3, who: 'am', act: [] },
+		{ id: 'HOM-008', p: 'hom', st: 'wait', title: 'Order kitchen tiles', labels: ['errand'], due: 'Jun 25', dgo: 0, pri: 3, who: 'rs', act: [] },
+		{ id: 'Q3-001', p: 'q3', st: 'todo', title: 'Quarterly kickoff meeting', labels: [], due: 'Jun 24', dgo: 0, pri: 2, who: 'am', act: [] },
+		{ id: 'Q3-002', p: 'q3', st: 'todo', title: 'Collect team goals', labels: [], due: 'Jun 26', dgo: 0, pri: 3, who: 'am', act: [] },
+	];
+	const names = { jk: 'Jamie Kim', rs: 'Robin Schmidt', mt: 'Mai Tanaka', sm: 'Sam Rivera', am: 'Alex Morgan' };
+	const stGlyph = { todo: '○', prog: '◐', wait: '◌' };
+	const stName = { todo: 'TO DO', prog: 'IN PROG', wait: 'WAITING' };
+
+	const lanesEl = document.getElementById('lanes');
+	const detail = document.getElementById('detail');
+	let selected = 0;
+
+	function dueCls(t) { return t.dgo ? 'overdue' : (t.due.startsWith('Today') ? 'today' : ''); }
+
+	function renderLanes() {
+		lanesEl.innerHTML = projects.map(pr => {
+			const items = tasks.map((t, i) => ({ t, i })).filter(x => x.t.p === pr.key);
+			return `
+			<div class="lane" data-p="${pr.key}">
+				<div class="lane-label">
+					<div class="top">
+						<span class="ndot" style="background:${pr.color}"></span>
+						<span class="lname">${pr.name}</span>
+						<span class="arrow">▾</span>
+					</div>
+					<div class="lmeta">${items.length} open${pr.late ? ` · <span class="late">${pr.late} ov</span>` : ''}</div>
+				</div>
+				<div class="lane-cols">
+				${cols.map(c => {
+					const cards = items.filter(x => x.t.st === c.key);
+					if (!cards.length) return '<div class="bucket empty"></div>';
+					return `<div class="bucket"><div class="m-col-title">${c.name}</div>${cards.map(({ t, i }) => `
+						<div class="rowcard ${i === selected ? 'sel' : ''}" data-i="${i}">
+							<span class="st ${t.st}">${stGlyph[t.st]}</span>
+							<span class="rid">${t.id}</span>
+							<span class="rt">${t.title}${t.subs ? `<span class="subs">${t.subs[0]}/${t.subs[1]}</span>` : ''}</span>
+							<span class="rdue ${dueCls(t)}">${t.due}</span>
+							<span class="rpri p${t.pri}">P${t.pri}</span>
+							<span class="avatar ${t.who}">${t.who.toUpperCase()}</span>
+						</div>`).join('')}</div>`;
+				}).join('')}
+				</div>
+			</div>`;
+		}).join('');
+
+		lanesEl.querySelectorAll('.lane-label').forEach(l => {
+			l.addEventListener('click', () => l.closest('.lane').classList.toggle('collapsed'));
+		});
+		lanesEl.querySelectorAll('.rowcard').forEach(r => {
+			r.addEventListener('click', () => { selected = +r.dataset.i; renderLanes(); renderDetail(); openSheet(); });
+		});
+	}
+
+	function renderDetail() {
+		const t = tasks[selected];
+		const pr = projects.find(p => p.key === t.p);
+		detail.innerHTML = `
+			<div class="sheet-handle"></div>
+			<div class="d-pad">
+				<div class="d-id">${t.id} · open</div>
+				<div class="d-proj"><span class="ndot" style="background:${pr.color}"></span>${pr.name}</div>
+				<div class="d-title">${t.title}</div>
+				<div class="dtabs">
+					<div class="dtab on">Details</div>
+					<div class="dtab">Activity</div>
+				</div>
+				<div class="props">
+					<div class="prop"><span class="k">Status</span><span class="v"><span class="stpill ${t.st}">${stGlyph[t.st]} ${stName[t.st]}</span></span></div>
+					<div class="prop"><span class="k">Assignee</span><span class="v"><span class="avatar ${t.who}">${t.who.toUpperCase()}</span>${names[t.who]}</span></div>
+					<div class="prop"><span class="k">Due</span><span class="v rdue ${dueCls(t)}" style="text-align:left">${t.due}${t.dgo ? ' · overdue' : ''}</span></div>
+					<div class="prop"><span class="k">Priority</span><span class="v rpri p${t.pri}" style="text-align:left">P${t.pri}</span></div>
+					${t.labels.length ? `<div class="prop"><span class="k">Labels</span><span class="v">${t.labels.map(l => `<span class="mtag ${l}">${l}</span>`).join('')}</span></div>` : ''}
+				</div>
+			</div>
+			${t.desc ? `<div class="d-sec"><h4>Description</h4><p class="d-desc">${t.desc}</p></div>` : ''}
+			${t.ck ? `<div class="d-sec">
+				<h4>Checklist · ${t.subs[0]} of ${t.subs[1]}</h4>
+				<div class="ckprog"><i style="width:${t.subs[0] / t.subs[1] * 100}%"></i></div>
+				${t.ck.map(c => `<div class="ckrow ${c[1] ? 'on' : ''}"><div class="ckbox">✓</div><span>${c[0]}</span></div>`).join('')}
+			</div>` : ''}
+			${t.act.length ? `<div class="d-sec"><h4>Activity</h4>
+				${t.act.map(a => `<div class="act-row"><span class="when">${a[0]}</span><span>${a[1]}</span></div>`).join('')}
+			</div>` : ''}
+		`;
+		detail.querySelectorAll('.ckrow').forEach(c => {
+			c.addEventListener('click', () => c.classList.toggle('on'));
+		});
+	}
+
+	renderLanes();
+	renderDetail();
+
+	// Command palette
+	const overlay = document.getElementById('overlay');
+	document.getElementById('openPal').addEventListener('click', () => overlay.classList.add('open'));
+	overlay.addEventListener('click', e => {
+		if (!document.getElementById('palette').contains(e.target)) overlay.classList.remove('open');
+	});
+	document.addEventListener('keydown', e => {
+		if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
+			e.preventDefault();
+			overlay.classList.toggle('open');
+		}
+		if (e.key === 'Escape') overlay.classList.remove('open');
+	});
+	document.querySelectorAll('.nav .nrow').forEach(n => {
+		n.addEventListener('click', () => {
+			document.querySelectorAll('.nav .nrow').forEach(x => x.classList.remove('active'));
+			n.classList.add('active');
+		});
+	});
+
+	// Mobile: drawer + bottom sheet
+	const scrim = document.getElementById('scrim');
+	const menuBtn = document.getElementById('menuBtn');
+	const sidebar = document.querySelector('.nav');
+	function openSheet() {
+		detail.classList.add('open');
+		detail.scrollTop = 0;
+		scrim.classList.add('show');
+		sidebar.classList.remove('open');
+	}
+	function closeOverlays() {
+		detail.classList.remove('open');
+		sidebar.classList.remove('open');
+		scrim.classList.remove('show');
+	}
+	menuBtn.addEventListener('click', () => {
+		sidebar.classList.add('open');
+		scrim.classList.add('show');
+	});
+	scrim.addEventListener('click', closeOverlays);
+	detail.addEventListener('click', e => {
+		if (e.target.classList.contains('sheet-handle')) closeOverlays();
+	});
+	document.addEventListener('keydown', e => {
+		if (e.key === 'Escape') closeOverlays();
+	});
+</script>
+</body>
+</html>

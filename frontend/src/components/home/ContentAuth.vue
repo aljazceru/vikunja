@@ -126,6 +126,7 @@ watch(() => route.name as string, (routeName) => {
 				'teams.index',
 				'teams.edit',
 				'tasks.range',
+				'tasks.overview',
 				'labels.index',
 				'migrate.start',
 				'migrate.wunderlist',

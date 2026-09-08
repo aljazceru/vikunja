@@ -1,0 +1,597 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Proposal 2 — Cozy · Swimlanes</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
+<style>
+	:root {
+		--bg: #f6f1e8;
+		--card: #ffffff;
+		--ink: #3d3529;
+		--muted: #8d8272;
+		--faint: #b3a893;
+		--coral: #ff7a59;
+		--coral-deep: #ef5f3c;
+		--coral-soft: #ffe9df;
+		--sage: #7fb69c;
+		--sage-deep: #47866c;
+		--sage-soft: #e2f1e8;
+		--sky: #7ba7d9;
+		--sky-soft: #e3edf9;
+		--lilac: #a68fd8;
+		--lilac-soft: #eee8fa;
+		--butter: #f4c95d;
+		--butter-soft: #fdf3d9;
+		--rose: #e08aa5;
+		--rose-soft: #fbe6ed;
+		--radius: 18px;
+		--shadow: 0 2px 10px rgba(88, 70, 40, .07);
+		--shadow-lift: 0 6px 20px rgba(88, 70, 40, .12);
+	}
+	* { margin: 0; padding: 0; box-sizing: border-box; }
+	html, body { height: 100%; }
+	body {
+		font-family: 'Nunito', 'Segoe UI', -apple-system, sans-serif;
+		font-size: 14px; color: var(--ink);
+		background:
+			radial-gradient(900px 500px at 85% -10%, #fdeee2 0%, transparent 60%),
+			radial-gradient(700px 400px at -10% 110%, #e9f2ec 0%, transparent 55%),
+			var(--bg);
+		-webkit-font-smoothing: antialiased;
+	}
+	.app { display: grid; grid-template-columns: 264px minmax(0, 1fr) 344px; gap: 18px; padding: 18px; height: 100vh; }
+
+	/* ---------- Sidebar ---------- */
+	.sidebar {
+		background: var(--card); border-radius: 24px;
+		box-shadow: var(--shadow); padding: 20px 14px;
+		display: flex; flex-direction: column;
+	}
+	.logo { display: flex; align-items: center; gap: 11px; padding: 2px 10px 18px; }
+	.logo-mark {
+		width: 38px; height: 38px; border-radius: 13px;
+		background: linear-gradient(135deg, #ffb38a, var(--coral-deep));
+		color: #fff; font-weight: 800; font-size: 19px;
+		display: grid; place-items: center;
+		box-shadow: 0 4px 10px rgba(239, 95, 60, .35);
+	}
+	.logo b { font-size: 16.5px; font-weight: 800; }
+	.logo small { display: block; color: var(--muted); font-size: 11.5px; font-weight: 600; }
+	.nav-item {
+		display: flex; align-items: center; gap: 11px;
+		padding: 10px 12px; border-radius: 14px; cursor: pointer;
+		font-weight: 700; font-size: 13.5px; color: #6f6552; transition: all .15s;
+	}
+	.nav-item:hover { background: #faf6ee; color: var(--ink); }
+	.nav-item.active { background: var(--coral-soft); color: var(--coral-deep); }
+	.nav-item .emoji { font-size: 16px; width: 22px; text-align: center; }
+	.nav-item .count {
+		margin-left: auto; font-size: 11px; font-weight: 800;
+		background: #f3eee4; color: var(--muted);
+		border-radius: 12px; padding: 1px 8px;
+	}
+	.nav-item.active .count { background: #ffd9c9; color: var(--coral-deep); }
+	.nav-sep { height: 1px; background: #f1ebdf; margin: 12px 8px; }
+	.nav-label { font-size: 10.5px; letter-spacing: .1em; text-transform: uppercase; color: var(--faint); font-weight: 800; padding: 6px 12px; }
+	.side-bottom { margin-top: auto; }
+	.user-chip {
+		display: flex; align-items: center; gap: 10px;
+		background: #faf6ee; border-radius: 14px; padding: 9px 11px;
+	}
+	.avatar {
+		width: 30px; height: 30px; border-radius: 50%;
+		display: grid; place-items: center; color: #fff;
+		font-weight: 800; font-size: 11.5px; flex-shrink: 0; border: 2px solid #fff;
+	}
+	.avatar.am { background: linear-gradient(135deg, #f5a26f, #e06b8f); }
+	.avatar.jk { background: linear-gradient(135deg, #7cb1f0, #6470dc); }
+	.avatar.rs { background: linear-gradient(135deg, #7fd0b4, #47a58c); }
+	.avatar.mt { background: linear-gradient(135deg, #c9a0ee, #9165cf); }
+	.avatar.sm { background: linear-gradient(135deg, #f5c96f, #d99a4e); }
+	.user-chip b { font-size: 12.5px; }
+	.user-chip small { display: block; font-size: 10.5px; color: var(--muted); }
+
+	/* ---------- Main ---------- */
+	.main { overflow-y: auto; padding: 6px 0 30px 0; min-width: 0; }
+	.greeting h1 { font-size: 23px; font-weight: 800; letter-spacing: -.01em; }
+	.greeting p { color: var(--muted); font-weight: 600; margin-top: 3px; }
+	.greeting p b { color: var(--ink); }
+	.greeting p .late { color: #c05a7d; }
+
+	.quick-add { margin-top: 16px; display: flex; gap: 10px; }
+	.qa-input {
+		flex: 1; background: var(--card); border: none;
+		border-radius: 999px; box-shadow: var(--shadow);
+		padding: 13px 22px; font: inherit; font-weight: 600;
+		color: var(--ink); outline: none;
+	}
+	.qa-input::placeholder { color: var(--faint); }
+	.qa-btn {
+		width: 48px; height: 48px; border-radius: 50%; border: none;
+		background: linear-gradient(135deg, #ffb38a, var(--coral-deep));
+		color: #fff; font-size: 21px; font-weight: 700; cursor: pointer;
+		box-shadow: 0 5px 14px rgba(239, 95, 60, .35);
+		transition: transform .15s;
+	}
+	.qa-btn:hover { transform: scale(1.06) rotate(90deg); }
+
+	.board-head { display: flex; align-items: center; gap: 14px; margin: 22px 2px 14px; flex-wrap: wrap; }
+	.board-head h2 { font-size: 17px; font-weight: 800; }
+	.board-head .hint { font-size: 12px; color: var(--muted); font-weight: 600; }
+	.view-chips { display: flex; gap: 4px; background: #efe8da; border-radius: 999px; padding: 4px; margin-left: auto; }
+	.chip { font-size: 12px; font-weight: 700; color: var(--muted); border-radius: 999px; padding: 5px 13px; cursor: pointer; }
+	.chip.active { background: var(--card); color: var(--ink); box-shadow: var(--shadow); }
+
+	/* ---------- Swimlanes ---------- */
+	.lanes { display: flex; flex-direction: column; gap: 14px; }
+	.lane { display: grid; grid-template-columns: 224px 1fr; gap: 12px; }
+	.lane-cols { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; min-width: 0; }
+	.lane-head {
+		background: var(--card); border-radius: var(--radius);
+		box-shadow: var(--shadow); padding: 14px 15px;
+		display: flex; flex-direction: column; gap: 8px;
+		cursor: pointer; user-select: none;
+	}
+	.lane-head .top { display: flex; align-items: center; gap: 8px; }
+	.lane-head .emoji { font-size: 18px; }
+	.lane-head .lname { font-size: 13.5px; font-weight: 800; }
+	.lane-head .ln {
+		margin-left: auto; font-size: 11px; font-weight: 800;
+		background: #f3eee4; color: var(--muted);
+		border-radius: 12px; padding: 1px 8px;
+	}
+	.lane-head .ln.late { background: var(--rose-soft); color: #c05a7d; }
+	.lane-head .nextdue { font-size: 11px; color: var(--muted); font-weight: 700; }
+	.lane-head .nextdue.late { color: #c05a7d; }
+	.lane-head .arrow { font-size: 9px; color: var(--faint); }
+	.lane.collapsed { grid-template-columns: 224px; }
+	.lane.collapsed .lane-cols { display: none; }
+	.lane.collapsed .arrow { transform: rotate(-90deg); display: inline-block; }
+
+	.bucket {
+		background: #efe9dd; border-radius: var(--radius);
+		padding: 10px; min-height: 56px;
+	}
+	.bucket.empty { display: grid; place-items: center; }
+	.bucket.empty::after { content: 'nothing here ✨'; font-size: 11px; color: var(--faint); font-weight: 700; }
+
+	.col-title {
+		font-size: 10.5px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase;
+		color: var(--muted); padding: 2px 4px 8px; display: flex; align-items: center; gap: 6px;
+	}
+	.col-title .cdot { width: 7px; height: 7px; border-radius: 50%; }
+
+	.tcard {
+		background: var(--card); border-radius: 15px;
+		padding: 12px 13px; margin-bottom: 9px;
+		box-shadow: var(--shadow); cursor: pointer;
+		transition: transform .15s, box-shadow .15s;
+		border-left: 4px solid #ddd;
+	}
+	.tcard:hover { transform: translateY(-2px); box-shadow: var(--shadow-lift); }
+	.tcard.selected {
+		transform: translateY(-2px);
+		box-shadow: 0 0 0 2.5px var(--coral), var(--shadow-lift);
+	}
+	.tcard h4 { font-size: 13px; font-weight: 700; line-height: 1.4; }
+	.tcard .labels { display: flex; gap: 5px; flex-wrap: wrap; margin-top: 6px; }
+	.tag { font-size: 10px; font-weight: 800; padding: 2px 9px; border-radius: 999px; }
+	.tag.urgent { background: var(--rose-soft); color: #c05a7d; }
+	.tag.backend { background: var(--sage-soft); color: #47866c; }
+	.tag.design { background: var(--lilac-soft); color: #7a5cba; }
+	.tag.research { background: var(--sky-soft); color: #4b78ad; }
+	.tag.docs { background: #f1ecdf; color: #9a8c6d; }
+	.tag.errand { background: var(--butter-soft); color: #a9822f; }
+	.tcard .foot { display: flex; align-items: center; gap: 6px; margin-top: 9px; flex-wrap: wrap; }
+	.badge { font-size: 10px; font-weight: 800; border-radius: 999px; padding: 2px 9px; }
+	.badge.today { background: var(--coral-soft); color: var(--coral-deep); }
+	.badge.late { background: var(--rose-soft); color: #c05a7d; }
+	.badge.soon { background: var(--sky-soft); color: #4b78ad; }
+	.badge.someday { background: #f1ecdf; color: #9a8c6d; }
+	.badge.subs { background: #f1ecdf; color: #9a8c6d; }
+	.pflag { font-size: 11px; }
+	.pflag.high { color: #c05a7d; } .pflag.med { color: #a9822f; } .pflag.low { color: #cfc4ac; }
+	.avatars { display: flex; margin-left: auto; }
+	.avatars .avatar { width: 23px; height: 23px; font-size: 9px; margin-left: -7px; }
+	.avatars .avatar:first-child { margin-left: 0; }
+
+	.add-card {
+		border: 1.5px dashed #d8cdb8; border-radius: 13px;
+		padding: 8px; text-align: center; font-size: 12px;
+		font-weight: 700; color: var(--muted); cursor: pointer;
+	}
+	.add-card:hover { border-color: var(--coral); color: var(--coral-deep); background: rgba(255,255,255,.5); }
+	.add-input {
+		display: none; width: 100%; border: none; border-radius: 13px;
+		padding: 9px 12px; font: inherit; font-weight: 600; outline: 2px solid var(--coral);
+	}
+	.bucket.compose .add-input { display: block; }
+	.bucket.compose .add-card { display: none; }
+
+	/* ---------- Detail ---------- */
+	.detail {
+		background: var(--card); border-radius: 24px;
+		box-shadow: var(--shadow); overflow-y: auto;
+		padding: 20px 20px 28px;
+	}
+	.d-proj {
+		display: inline-flex; align-items: center; gap: 7px;
+		font-size: 11px; font-weight: 800;
+		background: #faf6ee; border-radius: 999px; padding: 3px 11px;
+	}
+	.d-proj .pdot { width: 7px; height: 7px; border-radius: 50%; }
+	.d-title { font-size: 16.5px; font-weight: 800; margin-top: 10px; line-height: 1.35; }
+	.d-crumb { font-size: 11.5px; color: var(--muted); font-weight: 700; margin: 4px 0 14px; }
+	.props { border-top: 1px solid #f1ebdf; }
+	.prop { display: flex; align-items: center; padding: 8.5px 0; border-bottom: 1px solid #f1ebdf; font-size: 13px; }
+	.prop .k { width: 88px; color: var(--muted); font-weight: 700; flex-shrink: 0; font-size: 12px; }
+	.prop .v { display: flex; align-items: center; gap: 7px; font-weight: 700; }
+	.status-pill { font-size: 11px; font-weight: 800; padding: 2px 11px; border-radius: 999px; }
+	.status-pill.prog { background: var(--coral-soft); color: var(--coral-deep); }
+	.status-pill.todo { background: var(--sky-soft); color: #4b78ad; }
+	.status-pill.wait { background: var(--butter-soft); color: #a9822f; }
+	.d-sec { margin-top: 18px; }
+	.d-sec h4 { font-size: 10.5px; text-transform: uppercase; letter-spacing: .08em; color: var(--faint); font-weight: 800; margin-bottom: 8px; }
+	.d-desc { font-size: 13px; line-height: 1.7; color: #5c5240; font-weight: 600; }
+	.subtask { display: flex; align-items: center; gap: 10px; padding: 6px 0; font-size: 13px; font-weight: 700; cursor: pointer; }
+	.subcheck {
+		width: 18px; height: 18px; border-radius: 50%;
+		border: 2px solid #d8cdb8; flex-shrink: 0;
+		display: grid; place-items: center; color: transparent; font-size: 10px;
+	}
+	.subcheck:hover { border-color: var(--sage); }
+	.subtask.done-ck .subcheck { background: var(--sage); border-color: var(--sage); color: #fff; }
+	.subtask.done-ck span { color: var(--faint); text-decoration: line-through; }
+	.sub-progress { height: 5px; background: #f1ebdf; border-radius: 5px; margin: 8px 0 6px; overflow: hidden; }
+	.sub-progress i { display: block; height: 100%; background: var(--sage); border-radius: 5px; }
+	.act { position: relative; padding: 0 0 14px 20px; font-size: 12.5px; font-weight: 600; line-height: 1.5; }
+	.act::before {
+		content: ''; position: absolute; left: 0; top: 4px;
+		width: 9px; height: 9px; border-radius: 50%;
+		background: var(--coral-soft); border: 2px solid var(--coral);
+	}
+	.act:last-child::before { background: var(--card); }
+	.act .who { font-weight: 800; }
+	.act .when { color: var(--faint); font-size: 11px; }
+
+	/* ---------- Mobile ---------- */
+	.menu-btn { display: none; }
+	.scrim { display: none; }
+	.sheet-handle { display: none; }
+	@media (max-width: 880px) {
+		.app { grid-template-columns: 1fr; gap: 12px; padding: 12px; }
+		.sidebar {
+			position: fixed; top: 0; bottom: 0; left: 0; width: 280px;
+			z-index: 70; transform: translateX(-104%); transition: transform .22s ease;
+			border-radius: 0 24px 24px 0;
+		}
+		.sidebar.open { transform: none; }
+		.main { padding: 4px 0 26px; }
+		.greeting { padding-left: 46px; }
+		.greeting h1 { font-size: 20px; }
+		.board-head .hint { display: none; }
+		.view-chips { margin-left: 0; }
+		.lane { display: block; }
+		.lane-head { position: sticky; top: 0; z-index: 3; margin-bottom: 10px; }
+		.lane-cols {
+			display: flex; gap: 12px; overflow-x: auto;
+			scroll-snap-type: x mandatory; padding-bottom: 6px;
+		}
+		.lane-cols::-webkit-scrollbar { display: none; }
+		.bucket { min-width: min(84vw, 360px); scroll-snap-align: start; }
+		.detail {
+			position: fixed; left: 0; right: 0; bottom: 0; height: 86vh; margin: 0;
+			z-index: 80; transform: translateY(105%); transition: transform .26s ease;
+			border-radius: 24px 24px 0 0; padding: 14px 18px 24px;
+			box-shadow: 0 -14px 44px rgba(88, 70, 40, .25);
+		}
+		.detail.open { transform: none; }
+		.sheet-handle { display: block; width: 42px; height: 4px; border-radius: 4px; background: #e5ddcd; margin: 0 auto 14px; }
+		.menu-btn {
+			display: grid; place-items: center; position: fixed; top: 10px; left: 10px; z-index: 60;
+			width: 36px; height: 36px; border-radius: 50%;
+			border: 1px solid #e5ddcd; background: var(--card);
+			cursor: pointer; font-size: 15px; color: var(--ink);
+			box-shadow: var(--shadow);
+		}
+		.scrim { display: block; position: fixed; inset: 0; background: rgba(61, 53, 41, .4); z-index: 65; opacity: 0; pointer-events: none; transition: opacity .2s; }
+		.scrim.show { opacity: 1; pointer-events: auto; }
+	}
+
+	.back-link {
+		position: fixed; right: 14px; bottom: 14px; z-index: 50;
+		background: #3d3529; color: #f6f1e8;
+		padding: 7px 14px; border-radius: 999px; font-size: 12px; font-weight: 700;
+		text-decoration: none;
+	}
+	.back-link:hover { background: #574c3a; }
+</style>
+</head>
+<body>
+<button class="menu-btn" id="menuBtn">☰</button>
+<div class="scrim" id="scrim"></div>
+<div class="app">
+
+	<aside class="sidebar">
+		<div class="logo">
+			<div class="logo-mark">V</div>
+			<div><b>Vikunja</b><small>Alex's workspace</small></div>
+		</div>
+
+		<div class="nav-item active"><span class="emoji">🗂</span> All open <span class="count">21</span></div>
+		<div class="nav-item"><span class="emoji">☀️</span> My Day <span class="count">3</span></div>
+		<div class="nav-item"><span class="emoji">🔥</span> Overdue <span class="count">2</span></div>
+
+		<div class="nav-sep"></div>
+		<div class="nav-label">Projects · 21 open</div>
+		<div class="nav-item" data-p="pm"><span class="emoji">🚚</span> Platform Migration <span class="count">5</span></div>
+		<div class="nav-item" data-p="api"><span class="emoji">🔌</span> API v2 <span class="count">3</span></div>
+		<div class="nav-item" data-p="mkt"><span class="emoji">📣</span> Marketing Site <span class="count">4</span></div>
+		<div class="nav-item" data-p="vik"><span class="emoji">⛵</span> Team Vikings <span class="count">2</span></div>
+		<div class="nav-item" data-p="per"><span class="emoji">🌱</span> Personal <span class="count">2</span></div>
+		<div class="nav-item" data-p="hom"><span class="emoji">🛠️</span> Home Renovation <span class="count">3</span></div>
+		<div class="nav-item" data-p="q3"><span class="emoji">🎯</span> Q3 Planning <span class="count">2</span></div>
+
+		<div class="side-bottom">
+			<div class="user-chip">
+				<div class="avatar am">AM</div>
+				<div><b>Alex Morgan</b><small>Free plan</small></div>
+			</div>
+		</div>
+	</aside>
+
+	<main class="main">
+		<div class="greeting">
+			<h1>Everything outstanding 📋</h1>
+			<p>One lane per project · <b>21 open tasks</b> · <span class="late">2 overdue</span> · 1 due today</p>
+		</div>
+
+		<div class="quick-add">
+			<input class="qa-input" placeholder="Add a task…  (try “Call the plumber tomorrow #home”)">
+			<button class="qa-btn">＋</button>
+		</div>
+
+		<div class="board-head">
+			<h2>Swimlanes</h2>
+			<span class="hint">— click a card to open it, click a lane header to fold it</span>
+			<div class="view-chips">
+				<span class="chip">Columns</span>
+				<span class="chip active">Swimlanes</span>
+				<span class="chip">List</span>
+			</div>
+		</div>
+
+		<div class="lanes" id="lanes"><!-- rendered --></div>
+	</main>
+
+	<aside class="detail" id="detail"><!-- rendered --></aside>
+</div>
+
+<a class="back-link" href="index.html">← All proposals</a>
+
+<script>
+	const projects = [
+		{ key: 'pm', name: 'Platform Migration', emoji: '🚚', color: '#3b6fd4', late: 2, next: 'today 17:00' },
+		{ key: 'api', name: 'API v2', emoji: '🔌', color: '#8f6ee8', late: 0, next: 'Jun 12' },
+		{ key: 'mkt', name: 'Marketing Site', emoji: '📣', color: '#e06ba8', late: 1, next: 'Jun 17' },
+		{ key: 'vik', name: 'Team Vikings', emoji: '⛵', color: '#5b8def', late: 0, next: 'Thu' },
+		{ key: 'per', name: 'Personal', emoji: '🌱', color: '#3fb37f', late: 0, next: 'tomorrow' },
+		{ key: 'hom', name: 'Home Renovation', emoji: '🛠️', color: '#e0a23c', late: 0, next: 'Jun 14' },
+		{ key: 'q3', name: 'Q3 Planning', emoji: '🎯', color: '#22a8c9', late: 0, next: 'Jun 24' },
+	];
+	const cols = [
+		{ key: 'todo', name: 'To do', color: '#7ba7d9' },
+		{ key: 'prog', name: 'In progress', color: '#ff7a59' },
+		{ key: 'wait', name: 'Waiting', color: '#f4c95d' },
+	];
+	const tasks = [
+		{ id: 'VIK-142', p: 'pm', st: 'prog', title: 'Fix login redirect loop on mobile', labels: ['urgent', 'backend'], due: 'Today 17:00', badge: 'today', pri: 1, who: ['jk'], subs: '2/4',
+			desc: 'After the OIDC provider redirects back, Safari mobile drops the state parameter and lands the user on /login again. Suspect the session cookie is set with SameSite=Lax while the callback is a cross-site POST.',
+			activity: [['Jamie Kim', 'moved this to In progress', 'Today · 14:32'], ['You', 'assigned Jamie, set priority High', 'Yest · 18:04'], ['Robin Schmidt', 'commented — “Same on Android Chrome.”', 'Yest · 16:47']] },
+		{ id: 'VIK-151', p: 'pm', st: 'todo', title: 'Draft API changelog for v2 release', labels: ['research'], due: 'Jun 9', badge: 'late', pri: 2, who: ['rs'],
+			desc: 'Collect breaking changes between v1 and v2 into a migration guide. Blocked on the final webhook payload decision.',
+			activity: [['You', 'moved due date to Jun 9', 'Jun 7']] },
+		{ id: 'VIK-137', p: 'pm', st: 'todo', title: 'Port notification handlers to event bus', labels: ['backend'], due: 'Jun 13', badge: 'soon', pri: 2, who: ['mt'], subs: '1/5',
+			desc: 'Three of five listeners ported. Reminder and mail listeners remain.',
+			activity: [['Mai Tanaka', 'started a branch', '2d ago']] },
+		{ id: 'VIK-133', p: 'pm', st: 'todo', title: 'Update OpenAPI spec for saved filters', labels: [], due: 'Jun 18', badge: 'someday', pri: 3, who: ['sm'], activity: [] },
+		{ id: 'VIK-129', p: 'pm', st: 'todo', title: 'Load-test new endpoints', labels: ['backend'], due: 'Jun 19', badge: 'someday', pri: 3, who: ['rs'], activity: [] },
+		{ id: 'API-049', p: 'api', st: 'prog', title: 'Port saved filters endpoint to v2', labels: ['backend'], due: 'Jun 16', badge: 'soon', pri: 2, who: ['mt'], subs: '1/3',
+			desc: 'Huma handlers done; permission tests missing.',
+			activity: [['Mai Tanaka', 'pushed feature/huma-crud', '3h ago']] },
+		{ id: 'API-051', p: 'api', st: 'todo', title: 'Write migration guide for v1 clients', labels: ['docs'], due: 'Jun 12', badge: 'soon', pri: 2, who: ['jk'], activity: [] },
+		{ id: 'API-053', p: 'api', st: 'todo', title: 'Webhook payload contract tests', labels: ['backend'], due: 'Jun 14', badge: 'soon', pri: 3, who: ['jk'], activity: [] },
+		{ id: 'MKT-007', p: 'mkt', st: 'prog', title: 'Competitor teardown', labels: ['research'], due: 'Jun 9', badge: 'late', pri: 2, who: ['rs'], subs: '3/6',
+			desc: 'Five of eight competitors documented. Needs a summary matrix.',
+			activity: [['Robin Schmidt', 'added notes on two tools', 'Yest']] },
+		{ id: 'MKT-012', p: 'mkt', st: 'todo', title: 'Hero copy draft', labels: ['design'], due: 'Jun 17', badge: 'someday', pri: 2, who: ['am'], activity: [] },
+		{ id: 'MKT-014', p: 'mkt', st: 'todo', title: 'Pick illustration style', labels: ['design'], due: 'Jun 19', badge: 'someday', pri: 3, who: ['sm'], activity: [] },
+		{ id: 'MKT-010', p: 'mkt', st: 'todo', title: 'Pricing page wireframe', labels: ['design'], due: 'Jun 21', badge: 'someday', pri: 3, who: ['am'], activity: [] },
+		{ id: 'VIK-023', p: 'vik', st: 'todo', title: 'Prepare sprint retro notes', labels: [], due: 'Thu', badge: 'soon', pri: 3, who: ['am'], activity: [] },
+		{ id: 'VIK-021', p: 'vik', st: 'prog', title: 'Write onboarding guide', labels: ['docs'], due: 'Fri', badge: 'soon', pri: 2, who: ['mt'], subs: '3/5',
+			desc: 'Draft covers account setup, first project, inviting the team.',
+			activity: [['Mai Tanaka', 'completed “Screenshots” section', '4h ago']] },
+		{ id: 'PER-031', p: 'per', st: 'todo', title: 'Book dentist appointment', labels: [], due: 'Tomorrow', badge: 'today', pri: 3, who: ['am'], activity: [] },
+		{ id: 'PER-028', p: 'per', st: 'todo', title: 'Renew passport', labels: [], due: 'Jun 28', badge: 'someday', pri: 3, who: ['am'], activity: [] },
+		{ id: 'HOM-003', p: 'hom', st: 'todo', title: 'Pick paint colors for hallway', labels: ['errand'], due: 'Jun 14', badge: 'soon', pri: 3, who: ['am'], activity: [] },
+		{ id: 'HOM-005', p: 'hom', st: 'wait', title: 'Compare landscaper quotes', labels: [], due: 'Jun 18', badge: 'soon', pri: 3, who: ['am'], activity: [] },
+		{ id: 'HOM-008', p: 'hom', st: 'wait', title: 'Order kitchen tiles', labels: ['errand'], due: 'Jun 25', badge: 'someday', pri: 3, who: ['rs'], activity: [] },
+		{ id: 'Q3-001', p: 'q3', st: 'todo', title: 'Quarterly kickoff meeting', labels: [], due: 'Jun 24', badge: 'someday', pri: 2, who: ['am'], activity: [] },
+		{ id: 'Q3-002', p: 'q3', st: 'todo', title: 'Collect team goals', labels: [], due: 'Jun 26', badge: 'someday', pri: 3, who: ['am'], activity: [] },
+	];
+	const names = { jk: 'Jamie Kim', rs: 'Robin Schmidt', mt: 'Mai Tanaka', sm: 'Sam Rivera', am: 'Alex Morgan' };
+	const subItems = {
+		'VIK-142': [['Reproduce on iOS 17 Safari', 1], ['Check cookie flags in auth middleware', 1], ['Patch SameSite for callback route', 0], ['Add regression test', 0]],
+		'VIK-137': [['Port reminder listener', 0], ['Port mail listener', 1], ['Update event docs', 1], ['Load-test listeners', 0], ['Deprecate old bus', 0]],
+		'API-049': [['Huma handlers', 1], ['Permission tests', 0], ['OpenAPI annotations', 1]],
+		'MKT-007': [['Sign up for trials', 1], ['Screenshot flows', 1], ['Pricing matrix', 1], ['Notes: Asana', 1], ['Notes: ClickUp', 0], ['Notes: Todoist', 0]],
+		'VIK-021': [['Account setup section', 1], ['First project walkthrough', 1], ['Screenshots', 1], ['Invite teammates', 0], ['Publish', 0]],
+	};
+	const stName = { todo: 'To do', prog: 'In progress', wait: 'Waiting' };
+
+	const lanesEl = document.getElementById('lanes');
+	const detail = document.getElementById('detail');
+	let selected = 0;
+
+	function renderLanes() {
+		lanesEl.innerHTML = projects.map(pr => {
+			const items = tasks.map((t, i) => ({ t, i })).filter(x => x.t.p === pr.key);
+			return `
+			<div class="lane" data-p="${pr.key}">
+				<div class="lane-head">
+					<div class="top">
+						<span class="emoji">${pr.emoji}</span>
+						<span class="lname">${pr.name}</span>
+						<span class="ln ${pr.late ? 'late' : ''}">${pr.late ? pr.late + ' ⚠' : items.length}</span>
+						<span class="arrow">▾</span>
+					</div>
+					<div class="nextdue ${pr.late ? 'late' : ''}">${pr.late ? pr.late + ' overdue · ' : ''}next: ${pr.next}</div>
+				</div>
+				<div class="lane-cols">
+				${cols.map(c => {
+					const cards = items.filter(x => x.t.st === c.key);
+					if (!cards.length) return `<div class="bucket empty"></div>`;
+					return `<div class="bucket" data-col="${c.key}">
+						<div class="col-title"><span class="cdot" style="background:${c.color}"></span>${c.name} · ${cards.length}</div>
+						${cards.map(({ t, i }) => `
+							<div class="tcard ${i === selected ? 'selected' : ''}" data-i="${i}" style="border-left-color:${pr.color}">
+								<h4>${t.title}</h4>
+								${t.labels.length ? `<div class="labels">${t.labels.map(l => `<span class="tag ${l}">${l}</span>`).join('')}</div>` : ''}
+								<div class="foot">
+									<span class="badge ${t.badge}">${t.badge === 'today' ? '☀ ' + t.due : t.badge === 'late' ? '⚠ ' + t.due : t.due}</span>
+									${t.subs ? `<span class="badge subs">${t.subs} subs</span>` : ''}
+									<span class="pflag ${t.pri === 1 ? 'high' : t.pri === 2 ? 'med' : 'low'}">⚑</span>
+									<span class="avatars">${t.who.map(w => `<div class="avatar ${w}">${w.toUpperCase()}</div>`).join('')}</span>
+								</div>
+							</div>`).join('')}
+						<div class="add-card">＋ Add</div>
+						<input class="add-input" placeholder="Task title…">
+					</div>`;
+				}).join('')}
+				</div>
+			</div>`;
+		}).join('');
+
+		lanesEl.querySelectorAll('.lane-head').forEach(h => {
+			h.addEventListener('click', () => h.closest('.lane').classList.toggle('collapsed'));
+		});
+		lanesEl.querySelectorAll('.tcard').forEach(c => {
+			c.addEventListener('click', () => {
+				selected = +c.dataset.i;
+				lanesEl.querySelectorAll('.tcard').forEach(x => x.classList.remove('selected'));
+				c.classList.add('selected');
+				renderDetail(); openSheet();
+			});
+		});
+		lanesEl.querySelectorAll('.add-card').forEach(btn => {
+			btn.addEventListener('click', e => {
+				e.stopPropagation();
+				btn.closest('.bucket').classList.add('compose');
+				btn.closest('.bucket').querySelector('.add-input').focus();
+			});
+		});
+		lanesEl.querySelectorAll('.add-input').forEach(inp => {
+			inp.addEventListener('blur', () => inp.closest('.bucket').classList.remove('compose'));
+			inp.addEventListener('keydown', e => {
+				if (e.key === 'Enter' && inp.value.trim()) {
+					const bucket = inp.closest('.bucket');
+					const lane = bucket.closest('.lane');
+					const card = document.createElement('div');
+					card.className = 'tcard';
+					const pr = projects.find(p => p.key === lane.dataset.p);
+					card.style.borderLeftColor = pr.color;
+					card.innerHTML = `<h4>${inp.value.replace(/</g, '&lt;')}</h4>
+						<div class="foot"><span class="avatars"><div class="avatar am">AM</div></span></div>`;
+					bucket.querySelector('.add-card').before(card);
+					card.addEventListener('click', () => card.classList.add('selected'));
+					inp.value = '';
+					bucket.classList.remove('compose');
+				}
+			});
+		});
+	}
+
+	function renderDetail() {
+		const t = tasks[selected];
+		const pr = projects.find(p => p.key === t.p);
+		const subs = subItems[t.id];
+		const [done, total] = t.subs ? t.subs.split('/').map(Number) : [0, 0];
+		detail.innerHTML = `
+			<div class="sheet-handle"></div>
+			<div class="d-proj"><span class="pdot" style="background:${pr.color}"></span>${pr.emoji} ${pr.name}</div>
+			<div class="d-title">${t.title}</div>
+			<div class="d-crumb">${t.id} · updated ${t.activity.length ? t.activity[0][2] : 'recently'}</div>
+
+			<div class="props">
+				<div class="prop"><span class="k">Status</span><span class="v"><span class="status-pill ${t.st}">${stName[t.st]}</span></span></div>
+				<div class="prop"><span class="k">Assignee</span><span class="v"><div class="avatar ${t.who[0]}">${t.who[0].toUpperCase()}</div>${names[t.who[0]]}</span></div>
+				<div class="prop"><span class="k">Due date</span><span class="v" style="${t.badge === 'late' ? 'color:#c05a7d' : ''}">📅 ${t.due}</span></div>
+				<div class="prop"><span class="k">Priority</span><span class="v"><span class="pflag ${t.pri === 1 ? 'high' : t.pri === 2 ? 'med' : 'low'}">⚑</span> ${t.pri === 1 ? 'High' : t.pri === 2 ? 'Medium' : 'Low'}</span></div>
+				${t.labels.length ? `<div class="prop"><span class="k">Labels</span><span class="v">${t.labels.map(l => `<span class="tag ${l}">${l}</span>`).join('')}</span></div>` : ''}
+			</div>
+
+			${t.desc ? `<div class="d-sec"><h4>Description</h4><p class="d-desc">${t.desc}</p></div>` : ''}
+
+			${subs ? `<div class="d-sec">
+				<h4>Subtasks · ${done} of ${total}</h4>
+				<div class="sub-progress"><i style="width:${done / total * 100}%"></i></div>
+				${subs.map(s => `<div class="subtask ${s[1] ? 'done-ck' : ''}"><div class="subcheck">✓</div><span>${s[0]}</span></div>`).join('')}
+			</div>` : ''}
+
+			${t.activity.length ? `<div class="d-sec"><h4>Activity</h4>
+				${t.activity.map(a => `<div class="act"><span class="who">${a[0]}</span> ${a[1]}<div class="when">${a[2]}</div></div>`).join('')}
+			</div>` : ''}
+		`;
+		detail.querySelectorAll('.subtask').forEach(s => {
+			s.addEventListener('click', () => s.classList.toggle('done-ck'));
+		});
+	}
+
+	renderLanes();
+	renderDetail();
+
+	// Sidebar project click scrolls to its lane
+	document.querySelectorAll('.nav-item[data-p]').forEach(n => {
+		n.addEventListener('click', () => {
+			const lane = document.querySelector(`.lane[data-p="${n.dataset.p}"]`);
+			if (lane) lane.scrollIntoView({ behavior: 'smooth', block: 'start' });
+		});
+	});
+	document.querySelectorAll('.nav-item:not([data-p])').forEach(n => {
+		n.addEventListener('click', () => {
+			document.querySelectorAll('.nav-item').forEach(x => x.classList.remove('active'));
+			n.classList.add('active');
+		});
+	});
+	// Mobile: drawer + bottom sheet
+	const scrim = document.getElementById('scrim');
+	const menuBtn = document.getElementById('menuBtn');
+	const sidebar = document.querySelector('.sidebar');
+	function openSheet() {
+		detail.classList.add('open');
+		detail.scrollTop = 0;
+		scrim.classList.add('show');
+		sidebar.classList.remove('open');
+	}
+	function closeOverlays() {
+		detail.classList.remove('open');
+		sidebar.classList.remove('open');
+		scrim.classList.remove('show');
+	}
+	menuBtn.addEventListener('click', () => {
+		sidebar.classList.add('open');
+		scrim.classList.add('show');
+	});
+	scrim.addEventListener('click', closeOverlays);
+	detail.addEventListener('click', e => {
+		if (e.target.classList.contains('sheet-handle')) closeOverlays();
+	});
+	document.addEventListener('keydown', e => {
+		if (e.key === 'Escape') closeOverlays();
+	});
+</script>
+</body>
+</html>

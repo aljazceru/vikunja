@@ -32,6 +32,17 @@
 				</li>
 				<li>
 					<RouterLink
+						v-shortcut="'KeyG KeyT'"
+						:to="{ name: 'tasks.overview'}"
+					>
+						<span class="menu-item-icon icon">
+							<Icon icon="bars-staggered" />
+						</span>
+						{{ $t('navigation.allTasks') }}
+					</RouterLink>
+				</li>
+				<li>
+					<RouterLink
 						v-shortcut="'KeyG KeyU'"
 						:to="{ name: 'tasks.range'}"
 					>
