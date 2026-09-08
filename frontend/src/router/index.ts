@@ -316,6 +316,14 @@ const router = createRouter({
 			},
 		},
 		{
+			path: '/projects/:projectId/settings/github',
+			name: 'project.settings.github',
+			component: () => import('@/views/project/settings/ProjectSettingsGithub.vue'),
+			meta: {
+				showAsModal: true,
+			},
+		},
+		{
 			path: '/projects/:projectId/settings/delete',
 			name: 'project.settings.delete',
 			component: () => import('@/views/project/settings/ProjectSettingsDelete.vue'),

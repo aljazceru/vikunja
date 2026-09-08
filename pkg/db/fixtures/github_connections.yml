@@ -1,0 +1,46 @@
+# Connection #1 lives in project 1 (owned by user1) — user1 may manage it.
+# #2/#3/#4 back the permission matrix: project 9 is shared to user1 read-only,
+# 10 with write, 11 with admin; project 2 belongs to user3 without any share.
+# Create/Update/Delete gate on Project.CanUpdate, so only #1 and #3 pass for
+# user1 while reads pass everywhere user1 can read the project.
+- id: 1
+  project_id: 1
+  repo_owner: 'vikunja'
+  repo_name: 'api'
+  installation_id: 0
+  token: 'ghp_fixture_token'
+  webhook_secret: 'fixture-secret-1'
+  enabled: true
+  created_by_id: 1
+  created: 2024-01-01 00:00:00
+  updated: 2024-01-01 00:00:00
+- id: 2
+  project_id: 9
+  repo_owner: 'vikunja'
+  repo_name: 'frontend'
+  installation_id: 0
+  webhook_secret: 'fixture-secret-2'
+  enabled: true
+  created_by_id: 6
+  created: 2024-01-01 00:00:00
+  updated: 2024-01-01 00:00:00
+- id: 3
+  project_id: 10
+  repo_owner: 'someorg'
+  repo_name: 'somerepo'
+  installation_id: 123456
+  webhook_secret: 'fixture-secret-3'
+  enabled: true
+  created_by_id: 6
+  created: 2024-01-01 00:00:00
+  updated: 2024-01-01 00:00:00
+- id: 4
+  project_id: 2
+  repo_owner: 'otherorg'
+  repo_name: 'otherrepo'
+  installation_id: 0
+  webhook_secret: 'fixture-secret-4'
+  enabled: true
+  created_by_id: 3
+  created: 2024-01-01 00:00:00
+  updated: 2024-01-01 00:00:00

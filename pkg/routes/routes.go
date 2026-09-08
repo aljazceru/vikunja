@@ -352,6 +352,11 @@ var unauthenticatedAPIPaths = map[string]bool{
 	// MCP streamable-http endpoint (raw net/http, self-authenticated with an
 	// API token carrying the mcp.access permission — see pkg/mcp/auth.go).
 	"/api/v2/mcp": true,
+
+	// GitHub webhook receiver (also a raw echo route: GitHub posts a different
+	// JSON shape per event, which Huma's request validation can't model);
+	// deliveries authenticate via the connection's HMAC signature.
+	"/api/v2/integrations/github/webhook": true,
 }
 
 // collectRoutesForAPITokens collects all routes for API token permission checking.
@@ -437,6 +442,14 @@ func registerAPIRoutesV2(e *echo.Echo, a *echo.Group, wsRateLimit echo.Middlewar
 	a.POST("/mcp", echo.WrapHandler(mcpServer.Handler()))
 	a.GET("/mcp", echo.WrapHandler(mcpServer.Handler()))
 	a.DELETE("/mcp", echo.WrapHandler(mcpServer.Handler()))
+
+	// The GitHub webhook receiver is a raw route for the same reason as /ws:
+	// GitHub posts a different JSON payload per event type, which Huma's
+	// request-body validation would reject. HMAC is its authentication, so it's
+	// exempted from the JWT middleware via unauthenticatedAPIPaths.
+	if config.GithubEnabled.GetBool() {
+		a.POST("/integrations/github/webhook", apiv2.GitHubWebhookHandler)
+	}
 
 	// Resources self-register via init(); RegisterAll runs them all + AutoPatch.
 	apiv2.RegisterAll(api)

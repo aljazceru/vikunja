@@ -599,6 +599,35 @@
       "secretHint": "If provided, all requests to the webhook target URL will be signed using HMAC.",
       "secretDocs": "Check out the docs for more details about how to use secrets."
     },
+    "github": {
+      "title": "GitHub",
+      "description": "Connect GitHub repositories to this project. Their open issues and pull requests are mirrored as tasks and kept up to date automatically. Closed GitHub items mark their task as done.",
+      "noConnections": "No GitHub repositories are connected to this project yet.",
+      "lastSynced": "Last synced",
+      "neverSynced": "never",
+      "syncNow": "Sync now",
+      "pause": "Pause",
+      "resume": "Resume",
+      "state": {
+        "active": "active",
+        "paused": "paused"
+      },
+      "create": {
+        "repoLabel": "Repository",
+        "tokenLabel": "Personal access token",
+        "tokenPlaceholder": "A GitHub token with read access to the repository",
+        "installationLabel": "Installation ID",
+        "modeToken": "Personal access token",
+        "modeApp": "GitHub App installation",
+        "submit": "Connect repository",
+        "success": "The repository is connected. The initial sync runs in the background — check back in a minute.",
+        "invalidRepo": "Please provide a repository in the form \"owner/repo\"."
+      },
+      "sync": {
+        "success": "Sync finished: {created} created, {updated} updated, {unchanged} unchanged."
+      },
+      "deleteSuccess": "The repository was disconnected. Its mirrored tasks were kept."
+    },
     "views": {
       "header": "Edit views",
       "title": "Title",
