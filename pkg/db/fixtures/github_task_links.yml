@@ -1,0 +1,16 @@
+# Link #1 connects fixture task #1 to a GitHub issue. It backs link-lookup
+# tests (GetGitHubTaskLinkByNodeID) and the sync engine's update path.
+- id: 1
+  task_id: 1
+  project_id: 1
+  connection_id: 1
+  item_type: 'issue'
+  node_id: 'I_fixednode1'
+  number: 101
+  repo_owner: 'vikunja'
+  repo_name: 'api'
+  html_url: 'https://github.com/vikunja/api/issues/101'
+  content_hash: 'deadbeef'
+  last_seen_at: 2024-01-01 00:00:00
+  created: 2024-01-01 00:00:00
+  updated: 2024-01-01 00:00:00
