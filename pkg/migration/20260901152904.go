@@ -49,7 +49,7 @@ func init() {
 		ID:          "20260901152904",
 		Description: "Create github_connections table for the GitHub integration",
 		Migrate: func(tx *xorm.Engine) error {
-			return tx.Sync(githubConnection20260901152904{})
+			return tx.Sync2(githubConnection20260901152904{}) //nolint:forbidigo // brand-new table, nothing to drop
 		},
 		Rollback: func(tx *xorm.Engine) error {
 			return nil
